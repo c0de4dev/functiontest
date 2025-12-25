@@ -1,4 +1,4 @@
-﻿using DynamicAllowListingLib.Logger;
+﻿using DynamicAllowListingLib.Logging;
 using DynamicAllowListingLib.Models.AzureResources;
 using DynamicAllowListingLib.ServiceTagManagers;
 using Microsoft.Extensions.Logging;
@@ -15,7 +15,7 @@ namespace DynamicAllowListingLib.SettingsValidation.ResourceDependencyValidator
     private readonly IServiceTagManagerProvider _managerProvider;
     private readonly IResourceGraphExplorerService _resourceService;
     private ILogger<ResourceDependencyInformationValidator> _logger;
-    public ResourceDependencyInformationValidator(IServiceTagManagerProvider managerProvider, 
+    public ResourceDependencyInformationValidator(IServiceTagManagerProvider managerProvider,
       IResourceGraphExplorerService resourceService,
       ILogger<ResourceDependencyInformationValidator> logger)
     {
@@ -30,28 +30,30 @@ namespace DynamicAllowListingLib.SettingsValidation.ResourceDependencyValidator
       try
       {
         //run rules
-        FunctionLogger.MethodInformation(_logger, $"Validating Resource ID: {settings.ResourceId}");
+        _logger.LogValidatingResourceId(settings.ResourceId);
         result.Errors.AddRange(ValidateMainResourceId(settings.ResourceId));
 
-        FunctionLogger.MethodInformation(_logger, "Validating Newday Service Tags");
+        _logger.LogValidatingNewdayServiceTags();
         result.Errors.AddRange(ValidateNewDayServiceTagExistence(settings));
 
-        FunctionLogger.MethodInformation(_logger, "Validating Azure Service Tags");
+        _logger.LogValidatingAzureServiceTags();
         result.Errors.AddRange(ValidateAzureServiceTagExistence(settings));
 
-        FunctionLogger.MethodInformation(_logger, "Validating Resource ID Format for outbound and inbound");
+        _logger.LogValidatingResourceIdFormat();
         result.Errors.AddRange(ValidateResourceIdFormat(settings));
 
-        FunctionLogger.MethodInformation(_logger, $"Validating Cross Subscription Allowance for Subscription ID: {settings.RequestSubscriptionId}");
+        _logger.LogValidatingCrossSubscriptionAllowance(settings.RequestSubscriptionId);
         result.Errors.AddRange(ValidateCrossSubscriptionAllowance(settings));
       }
       catch (Exception ex)
       {
         result.Errors.Add($"Exception occured in validation: {ex.Message}");
+        _logger.LogValidationExceptionWithMessage(ex.Message);
         // Check and log the inner exception if present
         if (ex.InnerException != null)
         {
           result.Errors.Add($"Inner Exception: {ex.InnerException.Message}");
+          _logger.LogInnerException(ex.InnerException.Message);
         }
       }
       return result;
@@ -63,18 +65,18 @@ namespace DynamicAllowListingLib.SettingsValidation.ResourceDependencyValidator
       try
       {
         //run rules
-        FunctionLogger.MethodInformation(_logger, $"Validating Resource ID: {settings.ResourceId}");
+        _logger.LogValidatingFormatResourceId(settings.ResourceId);
         result.Errors.AddRange(ValidateMainResourceId(settings.ResourceId));
 
-        FunctionLogger.MethodInformation(_logger, "Validating Resource ID Format for outbound and inbound");
+        _logger.LogValidatingResourceIdFormatOnly();
         result.Errors.AddRange(ValidateResourceIdFormat(settings));
 
-        FunctionLogger.MethodInformation(_logger,$"Validating Cross Subscription Allowance for Subscription ID: {settings.RequestSubscriptionId}");
+        _logger.LogValidatingCrossSubscriptionFormat(settings.RequestSubscriptionId);
         result.Errors.AddRange(ValidateCrossSubscriptionAllowance(settings));
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogValidationException(ex);
       }
       return result;
     }
@@ -94,7 +96,6 @@ namespace DynamicAllowListingLib.SettingsValidation.ResourceDependencyValidator
     }
     public IEnumerable<string> ValidateNewDayServiceTagExistence(ResourceDependencyInformation settings)
     {
-      FunctionLogger.MethodStart(_logger, nameof(ValidateNewDayServiceTagExistence));
       List<string> errors = new List<string>();
       try
       {
@@ -110,25 +111,23 @@ namespace DynamicAllowListingLib.SettingsValidation.ResourceDependencyValidator
           {
             var errorMessage = $"Invalid/Null 'NewDayInternalAndThirdPartyTags' value. TagName: {tagName}";
             errors.Add(errorMessage);
-            FunctionLogger.MethodWarning(_logger, errorMessage);
+            _logger.LogInvalidNewDayServiceTag(tagName);
           }
           else
           {
-            string message = $"Validated NewDayInternalAndThirdPartyTag: {tagName}";
-            FunctionLogger.MethodInformation(_logger, message);
+            _logger.LogValidatedNewDayServiceTag(tagName);
           }
         }
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogValidationException(ex);
         throw;
       }
       return errors;
     }
     public IEnumerable<string> ValidateAzureServiceTagExistence(ResourceDependencyInformation settings)
     {
-      FunctionLogger.MethodStart(_logger, nameof(ValidateAzureServiceTagExistence));
       List<string> errors = new List<string>();
       try
       {
@@ -142,18 +141,17 @@ namespace DynamicAllowListingLib.SettingsValidation.ResourceDependencyValidator
           {
             var errorMessage = $"Invalid/Null 'AzureServiceTag' value. TagName: {tagName}";
             errors.Add(errorMessage);
-            FunctionLogger.MethodWarning(_logger, errorMessage);
+            _logger.LogInvalidAzureServiceTag(tagName);
           }
           else
           {
-            string message = $"Validated AzureServiceTag: {tagName}";
-            FunctionLogger.MethodInformation(_logger, message);
+            _logger.LogValidatedAzureServiceTag(tagName);
           }
         }
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogValidationException(ex);
         throw;
       }
       return errors;
@@ -164,7 +162,6 @@ namespace DynamicAllowListingLib.SettingsValidation.ResourceDependencyValidator
       List<string> errorList = new List<string>();
       try
       {
-        FunctionLogger.MethodStart(_logger, nameof(ValidateResourceIdFormat));
         // Validate inbound resource IDs
         if (settings.AllowInbound?.SecurityRestrictions != null)
         {
@@ -173,9 +170,7 @@ namespace DynamicAllowListingLib.SettingsValidation.ResourceDependencyValidator
           {
             foreach (var inboundResourceIdError in inboundResourceIdErrors)
             {
-              string message = $"Inbound resource ID validation errors found, InboundResourceIdErrors:{inboundResourceIdError}";
-              FunctionLogger.MethodError(_logger, message);
-
+              _logger.LogInboundResourceIdError(inboundResourceIdError);
             }
           }
           errorList.AddRange(inboundResourceIdErrors);
@@ -183,40 +178,36 @@ namespace DynamicAllowListingLib.SettingsValidation.ResourceDependencyValidator
         // Check if outbound resource IDs are provided
         if (settings.AllowOutbound?.ResourceIds == null || !(settings.AllowOutbound?.ResourceIds.Length > 0))
         {
-          FunctionLogger.MethodWarning(_logger, "No outbound resource IDs provided.");
+          _logger.LogNoOutboundResourceIds();
           return errorList;
         }
         // Validate outbound resource allowance
         if (settings.ResourceId != null && !AreOutboundResourcesAllowed(settings.ResourceId, out string errorMessage))
         {
           errorList.Add(errorMessage);
-          FunctionLogger.MethodError(_logger, errorMessage);
+          _logger.LogOutboundResourceIdError(errorMessage);
           return errorList;
         }
         // Validate outbound resource IDs
+        _logger.LogValidatingOutboundResourceIds(settings.AllowOutbound.ResourceIds.Length);
         var outboundResourceIdErrors = ValidateOutboundResourceIds(settings.AllowOutbound.ResourceIds);
         if (outboundResourceIdErrors.Any())
         {
           foreach (var outboundResourceIdError in outboundResourceIdErrors)
           {
-            string message = $"Outbound resource ID validation errors found, OutboundResourceIdErrors:{outboundResourceIdError}";
-            FunctionLogger.MethodError(_logger, message);
+            _logger.LogOutboundResourceIdError(outboundResourceIdError);
           }
         }
         errorList.AddRange(outboundResourceIdErrors);
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogValidationException(ex);
       }
       // Log the final validation results
-      if (errorList.Any())
+      if (!errorList.Any())
       {
-        FunctionLogger.MethodInformation(_logger, $"Resource ID Validation completed with {errorList.Count} errors.");
-      }
-      else
-      {
-        FunctionLogger.MethodWarning(_logger, "Validation completed successfully");
+        _logger.LogResourceIdFormatValidationSuccess();
       }
       return errorList;
     }
@@ -246,7 +237,6 @@ namespace DynamicAllowListingLib.SettingsValidation.ResourceDependencyValidator
       }
       foreach (string resourceId in resourceIds)
       {
-        FunctionLogger.MethodInformation(_logger, $"Validating Outbound ResourceID: {resourceId}");
         if (string.IsNullOrEmpty(resourceId))
         {
           const string errorMessage = "Invalid null or empty resource id found in provided outbound resource ids.";
@@ -290,7 +280,6 @@ namespace DynamicAllowListingLib.SettingsValidation.ResourceDependencyValidator
       }
       foreach (string resourceId in securityRestrictionsResourceIds)
       {
-        FunctionLogger.MethodInformation(_logger, $"Validating Inbound ResourceID: {resourceId}");
         if (string.IsNullOrEmpty(resourceId))
         {
           const string emErrorMessage = "Invalid null or empty resource id found in provided inbound resource ids.";
@@ -354,13 +343,11 @@ namespace DynamicAllowListingLib.SettingsValidation.ResourceDependencyValidator
       List<string> errorList = new List<string>();
       try
       {
-        FunctionLogger.MethodStart(_logger, nameof(ValidateCrossSubscriptionAllowance));
-        
+        _logger.LogValidatingCrossSubscription(settings.ResourceId, settings.RequestSubscriptionId);
+
         var allowedCrossSubscriptionPool = GetAllowedCrossSubList(settings.RequestSubscriptionId!); //subscription list
         if (allowedCrossSubscriptionPool.Key == null)
         {
-          string warning = $"No allowed cross-subscription pool found for the given request subscription ID: {settings.RequestSubscriptionId}";
-          FunctionLogger.MethodWarning(_logger, warning);
           return errorList;
         }
         // Validate inbound resources
@@ -373,7 +360,7 @@ namespace DynamicAllowListingLib.SettingsValidation.ResourceDependencyValidator
             {
               string errorMessage = $"Provided Inbound Resource, SubscriptionId: {settings.RequestSubscriptionId} is not allowed for cross-subscription with SubscriptionId: {subId}!";
               errorList.Add(errorMessage);
-              FunctionLogger.MethodWarning(_logger, errorMessage);
+              _logger.LogCrossSubscriptionDetected(settings.RequestSubscriptionId ?? "Unknown", subId);
             }
           }
         }
@@ -387,59 +374,33 @@ namespace DynamicAllowListingLib.SettingsValidation.ResourceDependencyValidator
             {
               string errorMessage = $"Provided Outbound Resource, SubscriptionId: {settings.RequestSubscriptionId} is not allowed for cross-subscription with SubscriptionId: {subId}!";
               errorList.Add(errorMessage);
-              FunctionLogger.MethodWarning(_logger, errorMessage);
+              _logger.LogCrossSubscriptionDetected(settings.RequestSubscriptionId ?? "Unknown", subId);
             }
           }
         }
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogValidationException(ex);
       }
-      // Log the errors if any were found
-      if (errorList.Count > 0)
+      // Log the result
+      if (!errorList.Any())
       {
-        FunctionLogger.MethodInformation(_logger, $"Cross subscription allowance validation completed with {errorList.Count} errors.");
-        foreach (string error in errorList)
-        {
-          FunctionLogger.MethodWarning( _logger, error);
-        }
-      }
-      else
-      {
-        FunctionLogger.MethodInformation(_logger, "Cross subscription allowance validation completed successfully with no errors.");
+        _logger.LogCrossSubscriptionValidationPassed();
       }
       return errorList;
     }
 
     private KeyValuePair<string, Dictionary<string, string>> GetAllowedCrossSubList(string requestSubscriptionId)
     {
-      string message = string.Empty;
-      FunctionLogger.MethodStart(_logger, nameof(GetAllowedCrossSubList));
-
-      FunctionLogger.MethodInformation(_logger, $"Request subscription ID:{requestSubscriptionId}");
       if (string.IsNullOrEmpty(requestSubscriptionId))
       {
-        // Log the scenario where the subscription ID is null or empty
-        message = $"Request subscription ID:{requestSubscriptionId} is null or empty.";
-        FunctionLogger.MethodWarning(_logger, message);
         return default;
       }
       // Try to find the allowed cross-subscription list
       var result = AllowedCrossSubscription.Group
           .Where(x => x.Value.ContainsKey(requestSubscriptionId))
           .FirstOrDefault();
-      // Log the outcome
-      if (result.Key != null)
-      {
-        message = $"Found allowed cross-subscription entry, Environment: {result.Key}, SubscriptionName:{result.Value[requestSubscriptionId]}";
-        FunctionLogger.MethodInformation( _logger, message);
-      }
-      else
-      {
-        message = "No allowed cross-subscription entry found for the provided subscription ID";
-        FunctionLogger.MethodInformation(_logger, message);
-      }
       return result;
     }
 

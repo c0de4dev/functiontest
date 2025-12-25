@@ -1,4 +1,4 @@
-﻿using DynamicAllowListingLib.Logger;
+﻿using DynamicAllowListingLib.Logging;
 using DynamicAllowListingLib.ServiceTagManagers.Model;
 using Microsoft.Extensions.Logging;
 using System;
@@ -25,21 +25,21 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
       try
       {
         //run rules
-        FunctionLogger.MethodInformation(_logger, "Validating Azure Subscriptions Parameters");
+        _logger.LogValidatingAzureSubscriptionParameters();
         result.Errors.AddRange(ValidateAzureSubscriptionParameters(settings));
 
-        FunctionLogger.MethodInformation(_logger, "Validating Service Tag IP Addresses");
+        _logger.LogValidatingServiceTagIPAddresses();
         result.Errors.AddRange(ValidateServiceTagIPAddresses(settings));
 
-        FunctionLogger.MethodInformation(_logger, "Validating Subscriptions Tag IP Addresses");
+        _logger.LogValidatingAllowedSubscriptionTags();
         result.Errors.AddRange(ValidateAllowedSubscriptionTags(settings));
 
-        FunctionLogger.MethodInformation(_logger, "Validating Overlapping IP Addresses");
+        _logger.LogValidatingOverlappingIPAddresses();
         result.Warnings.AddRange(ValidateAddressRangeOverlapping(settings));
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogValidationException(ex);
       }
       return result;
     }
@@ -52,13 +52,10 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
       List<IpAddressScope> addressPairs = new List<IpAddressScope>();
       try
       {
-        FunctionLogger.MethodStart(_logger, nameof(ValidateAddressRangeOverlapping));
-
         if (settings?.ServiceTags == null || !settings.ServiceTags.Any())
         {
-          string warningMessage = "No ServiceTags provided in the settings.";
-          FunctionLogger.MethodWarning(_logger, warningMessage);
-          warnings.Add(warningMessage);
+          _logger.LogNoServiceTagsInSettings();
+          warnings.Add("No ServiceTags provided in the settings.");
           return warnings;
         }
 
@@ -66,9 +63,8 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
         {
           if (tag?.AddressPrefixes == null)
           {
-            string warningMessage = $"ServiceTag '{tag?.Name}' has no AddressPrefixes defined.";
-            FunctionLogger.MethodWarning(_logger, warningMessage);
-            warnings.Add(warningMessage);
+            _logger.LogServiceTagNoAddressPrefixes(tag?.Name ?? "Unknown");
+            warnings.Add($"ServiceTag '{tag?.Name}' has no AddressPrefixes defined.");
             continue;
           }
           foreach (var addr in tag.AddressPrefixes)
@@ -81,7 +77,7 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
                 var warningMessage = $"Overlapping 'ServiceTags.AddressPrefixes' detected. " +
                                              $"ServiceTags.Name: {tag.Name}, AddressPrefix: {addr}";
                 warnings.Add(warningMessage);
-                FunctionLogger.MethodWarning(_logger, warningMessage);
+                _logger.LogOverlappingAddressPrefixDetected(tag.Name ?? "Unknown", addr);
               }
               else
               {
@@ -91,23 +87,23 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
             }
             else
             {
-              FunctionLogger.MethodWarning(_logger, $"Invalid or null AddressPrefix '{addr}' in ServiceTag '{tag.Name}'.");
+              _logger.LogInvalidAddressPrefix(addr, tag.Name ?? "Unknown");
             }
           }
         }
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogValidationException(ex);
       }
       // Log the outcome of the validation
       if (warnings.Any())
       {
-        FunctionLogger.MethodInformation(_logger, $"Address range validation completed with {warnings.Count} warnings.");
+        _logger.LogAddressRangeValidationWithWarnings(warnings.Count);
       }
       else
       {
-        FunctionLogger.MethodInformation(_logger, "Address range validation completed successfully with no overlapping ranges.");
+        _logger.LogAddressRangeValidationSuccess();
       }
       return warnings;
     }
@@ -117,24 +113,22 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
       List<string> errors = new List<string>();
       try
       {
-        FunctionLogger.MethodStart(_logger, nameof(ValidateAllowedSubscriptionTags));
-
         if (settings?.AzureSubscriptions == null || !settings.AzureSubscriptions.Any())
         {
           var errorMessage = "No Azure subscriptions are available for validation.";
-          FunctionLogger.MethodError(_logger, errorMessage);
+          _logger.LogNoAzureSubscriptionsForValidation();
           errors.Add(errorMessage);
           return errors;
         }
 
         var subscriptionList = settings.AzureSubscriptions.Select(x => x.Name).ToList();
         // Log the subscriptions available for validation
-        FunctionLogger.MethodInformation(_logger, $"Available Azure subscriptions: {string.Join(", ", subscriptionList)}");
+        _logger.LogAvailableAzureSubscriptions(string.Join(", ", subscriptionList));
 
         if (settings.ServiceTags == null || !settings.ServiceTags.Any())
         {
           var errorMessage = "No ServiceTags are provided in the settings.";
-          FunctionLogger.MethodError(_logger, errorMessage);
+          _logger.LogNoServiceTagsProvided();
           errors.Add(errorMessage);
           return errors;
         }
@@ -144,7 +138,7 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
           if (tag.AllowedSubscriptions == null || tag.AllowedSubscriptions.Count <= 0)
           {
             string errorMessage = $"Null/Empty 'ServiceTags.AllowedSubscriptions' value. ServiceTag: {tag.Name}";
-            FunctionLogger.MethodWarning(_logger, errorMessage);
+            _logger.LogNullOrEmptyAllowedSubscriptions(tag.Name);
             errors.Add(errorMessage);
             continue;
           }
@@ -153,7 +147,7 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
             if (!subscriptionList.Contains(subscriptionTag.SubscriptionName))
             {
               string errorMessage = $"Invalid 'ServiceTags.AllowedSubscriptions'. SubscriptionName: {subscriptionTag.SubscriptionName} Tag: {tag.Name}";
-              FunctionLogger.MethodError(_logger, errorMessage);
+              _logger.LogInvalidAllowedSubscription(subscriptionTag.SubscriptionName, tag.Name);
               errors.Add(errorMessage);
             }
           }
@@ -161,16 +155,16 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogValidationException(ex);
       }
       // Log the outcome of the validation
       if (errors.Any())
       {
-        FunctionLogger.MethodInformation(_logger, $"Subscription allowed Service Tag Validation completed with {errors.Count} errors.");
+        _logger.LogAllowedSubscriptionValidationWithErrors(errors.Count);
       }
       else
       {
-        FunctionLogger.MethodInformation(_logger, "Subscription allowed Service Tag validation completed successfully with no errors.");
+        _logger.LogAllowedSubscriptionValidationSuccess();
       }
       return errors;
     }
@@ -180,11 +174,10 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
       List<string> errors = new List<string>();
       try
       {
-        FunctionLogger.MethodStart(_logger, nameof(ValidateServiceTagIPAddresses));
         if (settings?.ServiceTags == null || !settings.ServiceTags.Any())
         {
           var errorMessage = "No ServiceTags provided in the settings.";
-          FunctionLogger.MethodError(_logger, errorMessage);
+          _logger.LogNoServiceTagsProvidedForIPValidation();
           errors.Add(errorMessage);
           return errors;
         }
@@ -194,13 +187,13 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
           if (string.IsNullOrEmpty(tag.Name))
           {
             string errorMessage = $"Null/Empty 'ServiceTags.Name' value.";
-            FunctionLogger.MethodWarning(_logger, errorMessage);
+            _logger.LogNullOrEmptyServiceTagName();
             errors.Add(errorMessage);
           }
           // Validate Address Prefixes
           if (tag.AddressPrefixes == null || !tag.AddressPrefixes.Any())
           {
-            FunctionLogger.MethodWarning(_logger, $"ServiceTag '{tag.Name}' has no AddressPrefixes defined.");
+            _logger.LogNoAddressPrefixesDefined(tag.Name);
           }
           else
           {
@@ -209,7 +202,7 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
               if (address != null && !IsCIDRAddressValid(address))
               {
                 string errorMessage = $"Invalid 'ServiceTags.AddressPrefixes' value. ServiceTags.Name: {tag.Name}, IPAddress: {address}";
-                FunctionLogger.MethodError(_logger, errorMessage);
+                _logger.LogInvalidAddressPrefixValue(tag.Name, address);
                 errors.Add(errorMessage);
               }
             }
@@ -217,7 +210,7 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
           // Validate Subnet IDs
           if (tag.SubnetIds == null || !tag.SubnetIds.Any())
           {
-            FunctionLogger.MethodWarning(_logger, $"ServiceTag '{tag.Name}' has no SubnetIds defined.");
+            _logger.LogNoSubnetIdsDefined(tag.Name);
           }
           else
           {
@@ -226,7 +219,7 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
               if (subnetId != null && !IsValidSubnetId(subnetId))
               {
                 string errorMessage = $"Invalid 'ServiceTags.Subnet' value. ServiceTags.Name: {tag.Name}, SubnetId: {subnetId}";
-                FunctionLogger.MethodError(_logger, errorMessage);
+                _logger.LogInvalidSubnetIdValue(tag.Name, subnetId);
                 errors.Add(errorMessage);
               }
             }
@@ -235,16 +228,16 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogValidationException(ex);
       }
       // Log the outcome of the validation
       if (errors.Any())
       {
-        FunctionLogger.MethodWarning(_logger, $"Service Tag IP Address Validation completed with {errors.Count} errors");
+        _logger.LogIPAddressValidationWithErrors(errors.Count);
       }
       else
       {
-        FunctionLogger.MethodInformation(_logger, "Service Tag IP Address Validation completed successfully with no errors.");
+        _logger.LogIPAddressValidationSuccess();
       }
       return errors;
     }
@@ -255,13 +248,11 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
       const int defaultSubscriptionCount = 6;
       try
       {
-        FunctionLogger.MethodStart(_logger, nameof(ValidateAddressRangeOverlapping));
-
         if (settings?.AzureSubscriptions == null || !settings.AzureSubscriptions.Any())
         {
           var errorMessage = "No AzureSubscriptions defined in the settings.";
           errors.Add(errorMessage);
-          FunctionLogger.MethodError(_logger, errorMessage);
+          _logger.LogNoAzureSubscriptionsDefined();
           return errors;
         }
 
@@ -272,7 +263,7 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
         {
           var errorMessage = $"AzureSubscription validation failed. A minimum of {defaultSubscriptionCount} subscriptions with valid 'Id' and 'Name' is required.";
           errors.Add(errorMessage);
-          FunctionLogger.MethodWarning(_logger, errorMessage);
+          _logger.LogAzureSubscriptionValidationFailed(defaultSubscriptionCount);
         }
         else
         {
@@ -282,7 +273,7 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
             {
               var errorMessage = $"AzureSubscription has missing 'Id' or 'Name'. SubscriptionName: {subscription.Name ?? "N/A"}";
               errors.Add(errorMessage);
-              FunctionLogger.MethodWarning(_logger, errorMessage);
+              _logger.LogMissingIdOrName(subscription.Name ?? "N/A");
               continue;
             }
 
@@ -290,29 +281,28 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
             {
               string errorMessage = $"Invalid 'AzureSubscription.Id' value. AzureSubscription.Id must be a valid GUID. AzureSubscription.Name: {subscription.Name}";
               errors.Add(errorMessage);
-              FunctionLogger.MethodWarning(_logger, errorMessage);
+              _logger.LogInvalidSubscriptionId(subscription.Name);
             }
             else
             {
-              string message = $"Validated 'AzureSubscription.Id' as valid GUID. AzureSubscription.Id: {subscription.Id}, AzureSubscription.Name: {subscription.Name}";
               // Log valid GUID for tracing
-              FunctionLogger.MethodInformation(_logger, message);
+              _logger.LogValidSubscriptionId(subscription.Id, subscription.Name);
             }
           }
         }
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogValidationException(ex);
       }
       // Return any accumulated errors
       if (errors.Any())
       {
-        FunctionLogger.MethodWarning(_logger, $"Azure Subscription Validation failed with {errors.Count} errors");
+        _logger.LogAzureSubscriptionValidationWithErrors(errors.Count);
       }
       else
       {
-        FunctionLogger.MethodInformation(_logger, "Azure Subscription Validation completed successfully with no errors.");
+        _logger.LogAzureSubscriptionValidationSuccess();
       }
       return errors;
     }
