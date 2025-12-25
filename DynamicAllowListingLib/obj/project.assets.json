@@ -59,6 +59,22 @@
           }
         }
       },
+      "Microsoft.ApplicationInsights/2.22.0": {
+        "type": "package",
+        "dependencies": {
+          "System.Diagnostics.DiagnosticSource": "5.0.0"
+        },
+        "compile": {
+          "lib/netstandard2.0/Microsoft.ApplicationInsights.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.ApplicationInsights.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
       "Microsoft.Azure.Cosmos/3.17.1": {
         "type": "package",
         "dependencies": {
@@ -2773,6 +2789,27 @@
         "lib/netstandard2.0/System.Net.IPNetwork.xml",
         "lib/netstandard2.1/System.Net.IPNetwork.dll",
         "lib/netstandard2.1/System.Net.IPNetwork.xml"
+      ]
+    },
+    "Microsoft.ApplicationInsights/2.22.0": {
+      "sha512": "3AOM9bZtku7RQwHyMEY3tQMrHIgjcfRDa6YQpd/QG2LDGvMydSlL9Di+8LLMt7J2RDdfJ7/2jdYv6yHcMJAnNw==",
+      "type": "package",
+      "path": "microsoft.applicationinsights/2.22.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "icon.png",
+        "lib/net452/Microsoft.ApplicationInsights.dll",
+        "lib/net452/Microsoft.ApplicationInsights.pdb",
+        "lib/net452/Microsoft.ApplicationInsights.xml",
+        "lib/net46/Microsoft.ApplicationInsights.dll",
+        "lib/net46/Microsoft.ApplicationInsights.pdb",
+        "lib/net46/Microsoft.ApplicationInsights.xml",
+        "lib/netstandard2.0/Microsoft.ApplicationInsights.dll",
+        "lib/netstandard2.0/Microsoft.ApplicationInsights.pdb",
+        "lib/netstandard2.0/Microsoft.ApplicationInsights.xml",
+        "microsoft.applicationinsights.2.22.0.nupkg.sha512",
+        "microsoft.applicationinsights.nuspec"
       ]
     },
     "Microsoft.Azure.Cosmos/3.17.1": {
@@ -8321,6 +8358,7 @@
     "net8.0": [
       "Azure.Identity >= 1.13.1",
       "IPNetwork2 >= 3.0.667",
+      "Microsoft.ApplicationInsights >= 2.22.0",
       "Microsoft.Azure.Cosmos >= 3.17.1",
       "Microsoft.Azure.Management.CosmosDB >= 3.1.0",
       "Microsoft.Azure.Management.ResourceGraph >= 2.1.0",
@@ -8392,6 +8430,10 @@
           "IPNetwork2": {
             "target": "Package",
             "version": "[3.0.667, )"
+          },
+          "Microsoft.ApplicationInsights": {
+            "target": "Package",
+            "version": "[2.22.0, )"
           },
           "Microsoft.Azure.Cosmos": {
             "target": "Package",

@@ -1,12 +1,13 @@
 {
   "version": 2,
-  "dgSpecHash": "tTSMIDTgdCE=",
+  "dgSpecHash": "dySfOlF5LSo=",
   "success": true,
   "projectFilePath": "C:\\Users\\Administrator\\Desktop\\PlatformEngineering.DynamicAllowListing\\PlatformEngineering.DynamicAllowListing\\DynamicAllowListingLib\\DynamicAllowListingLib.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Administrator\\.nuget\\packages\\azure.core\\1.44.1\\azure.core.1.44.1.nupkg.sha512",
     "C:\\Users\\Administrator\\.nuget\\packages\\azure.identity\\1.13.1\\azure.identity.1.13.1.nupkg.sha512",
     "C:\\Users\\Administrator\\.nuget\\packages\\ipnetwork2\\3.0.667\\ipnetwork2.3.0.667.nupkg.sha512",
+    "C:\\Users\\Administrator\\.nuget\\packages\\microsoft.applicationinsights\\2.22.0\\microsoft.applicationinsights.2.22.0.nupkg.sha512",
     "C:\\Users\\Administrator\\.nuget\\packages\\microsoft.azure.cosmos\\3.17.1\\microsoft.azure.cosmos.3.17.1.nupkg.sha512",
     "C:\\Users\\Administrator\\.nuget\\packages\\microsoft.azure.management.cosmosdb\\3.1.0\\microsoft.azure.management.cosmosdb.3.1.0.nupkg.sha512",
     "C:\\Users\\Administrator\\.nuget\\packages\\microsoft.azure.management.resourcegraph\\2.1.0\\microsoft.azure.management.resourcegraph.2.1.0.nupkg.sha512",

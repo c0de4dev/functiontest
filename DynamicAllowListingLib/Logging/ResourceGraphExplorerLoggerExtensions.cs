@@ -1,21 +1,24 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace DynamicAllowListingLib.Logging
 {
   /// <summary>
   /// High-performance structured logging extensions for ResourceGraphExplorerService operations.
   /// Uses LoggerMessage source generators for optimal performance.
+  /// 
+  /// EVENT ID RANGE: 9000-9099 (Fixed to avoid conflicts with HelpersLoggerExtensions which uses 8000-8199)
   /// </summary>
   public static partial class ResourceGraphExplorerLoggerExtensions
   {
     // ============================================================
-    // Method Lifecycle (EventIds 8000-8019)
+    // Method Lifecycle (EventIds 9000-9019)
     // ============================================================
 
     [LoggerMessage(
-        EventId = 8000,
+        EventId = 9000,
         Level = LogLevel.Information,
         Message = "Starting method: {MethodName}")]
     public static partial void LogMethodStart(
@@ -23,7 +26,7 @@ namespace DynamicAllowListingLib.Logging
         string methodName);
 
     [LoggerMessage(
-        EventId = 8001,
+        EventId = 9001,
         Level = LogLevel.Information,
         Message = "Completed method: {MethodName} | Success: {Success}")]
     public static partial void LogMethodComplete(
@@ -32,7 +35,7 @@ namespace DynamicAllowListingLib.Logging
         bool success);
 
     [LoggerMessage(
-        EventId = 8002,
+        EventId = 9002,
         Level = LogLevel.Error,
         Message = "Exception in method: {MethodName}")]
     public static partial void LogMethodException(
@@ -41,7 +44,7 @@ namespace DynamicAllowListingLib.Logging
         string methodName);
 
     [LoggerMessage(
-        EventId = 8003,
+        EventId = 9003,
         Level = LogLevel.Warning,
         Message = "{MethodName} | {Message}")]
     public static partial void LogMethodWarning(
@@ -49,12 +52,32 @@ namespace DynamicAllowListingLib.Logging
         string methodName,
         string message);
 
+    [LoggerMessage(
+        EventId = 9004,
+        Level = LogLevel.Information,
+        Message = "Completed method: {MethodName} | Duration: {DurationMs}ms | Success: {Success}")]
+    public static partial void LogMethodCompleteWithDuration(
+        this ILogger logger,
+        string methodName,
+        long durationMs,
+        bool success);
+
+    [LoggerMessage(
+        EventId = 9005,
+        Level = LogLevel.Error,
+        Message = "Exception in method: {MethodName} | Duration: {DurationMs}ms")]
+    public static partial void LogMethodExceptionWithDuration(
+        this ILogger logger,
+        Exception exception,
+        string methodName,
+        long durationMs);
+
     // ============================================================
-    // GetResourceInstances (EventIds 8020-8039)
+    // GetResourceInstances (EventIds 9020-9039)
     // ============================================================
 
     [LoggerMessage(
-        EventId = 8020,
+        EventId = 9020,
         Level = LogLevel.Information,
         Message = "GetResourceInstances started | SubscriptionCount: {SubscriptionCount} | ResourceIdCount: {ResourceIdCount}")]
     public static partial void LogGetResourceInstancesStart(
@@ -63,13 +86,13 @@ namespace DynamicAllowListingLib.Logging
         int resourceIdCount);
 
     [LoggerMessage(
-        EventId = 8021,
+        EventId = 9021,
         Level = LogLevel.Warning,
         Message = "No resource IDs provided for GetResourceInstances")]
     public static partial void LogNoResourceIdsProvided(this ILogger logger);
 
     [LoggerMessage(
-        EventId = 8022,
+        EventId = 9022,
         Level = LogLevel.Debug,
         Message = "Executing Resource Graph query | QueryLength: {QueryLength}")]
     public static partial void LogExecutingQuery(
@@ -77,394 +100,182 @@ namespace DynamicAllowListingLib.Logging
         int queryLength);
 
     [LoggerMessage(
-        EventId = 8023,
+        EventId = 9023,
         Level = LogLevel.Information,
-        Message = "GetResourceInstances completed | ResourcesRetrieved: {ResourceCount}")]
-    public static partial void LogGetResourceInstancesComplete(
+        Message = "Resource Graph query completed | ResourcesFound: {ResourceCount}")]
+    public static partial void LogQueryComplete(
         this ILogger logger,
         int resourceCount);
 
     [LoggerMessage(
-        EventId = 8024,
+        EventId = 9024,
         Level = LogLevel.Warning,
-        Message = "GetResourceInstances returned null resources")]
-    public static partial void LogNullResourcesReturned(this ILogger logger);
+        Message = "No resources found for query")]
+    public static partial void LogNoResourcesFound(this ILogger logger);
 
     [LoggerMessage(
-        EventId = 8025,
+        EventId = 9025,
         Level = LogLevel.Error,
-        Message = "GetResourceInstances faileds")]
-    public static partial void LogGetResourceInstancesFailed(
+        Message = "Resource Graph query failed | Query: {Query}")]
+    public static partial void LogQueryFailed(
         this ILogger logger,
-        Exception exception);
-
-    // ============================================================
-    // GetResourceGraphExplorerResponse (EventIds 8040-8059)
-    // ============================================================
+        Exception exception,
+        string query);
 
     [LoggerMessage(
-        EventId = 8040,
-        Level = LogLevel.Information,
-        Message = "Resource Graph API request started | SubscriptionCount: {SubscriptionCount}")]
-    public static partial void LogResourceGraphRequestStart(
-        this ILogger logger,
-        int subscriptionCount);
-
-    [LoggerMessage(
-        EventId = 8041,
-        Level = LogLevel.Warning,
-        Message = "Invalid parameters for Resource Graph request | HasSubscriptions: {HasSubscriptions} | HasQuery: {HasQuery}")]
-    public static partial void LogInvalidResourceGraphParameters(
-        this ILogger logger,
-        bool hasSubscriptions,
-        bool hasQuery);
-
-    [LoggerMessage(
-        EventId = 8042,
+        EventId = 9026,
         Level = LogLevel.Debug,
-        Message = "Resource Graph API request body prepared | BodyLength: {BodyLength}")]
-    public static partial void LogResourceGraphRequestBody(
+        Message = "Resource Graph query details | Query: {Query} | SubscriptionIds: {SubscriptionIds}")]
+    public static partial void LogQueryDetails(
         this ILogger logger,
-        int bodyLength);
-
-    [LoggerMessage(
-        EventId = 8043,
-        Level = LogLevel.Information,
-        Message = "Resource Graph API response received | ResponseSize: {ResponseSize}")]
-    public static partial void LogResourceGraphResponseReceived(
-        this ILogger logger,
-        int responseSize);
-
-    [LoggerMessage(
-        EventId = 8044,
-        Level = LogLevel.Warning,
-        Message = "Resource Graph API returned empty response")]
-    public static partial void LogEmptyResourceGraphResponse(this ILogger logger);
-
-    [LoggerMessage(
-        EventId = 8045,
-        Level = LogLevel.Error,
-        Message = "Resource Graph API request failed")]
-    public static partial void LogResourceGraphRequestFailed(
-        this ILogger logger,
-        Exception exception);
+        string query,
+        string subscriptionIds);
 
     // ============================================================
-    // GetExistingResourceIds (EventIds 8060-8079)
+    // GetVNets (EventIds 9040-9049)
     // ============================================================
 
     [LoggerMessage(
-        EventId = 8060,
+        EventId = 9040,
         Level = LogLevel.Information,
-        Message = "GetExistingResourceIds started | SubscriptionId: {SubscriptionId} | ResourceListCount: {ResourceListCount}")]
-    public static partial void LogGetExistingResourceIdsStart(
+        Message = "Fetching VNets | SubscriptionId: {SubscriptionId}")]
+    public static partial void LogFetchingVNets(
+        this ILogger logger,
+        string subscriptionId);
+
+    [LoggerMessage(
+        EventId = 9041,
+        Level = LogLevel.Information,
+        Message = "VNets retrieved | SubscriptionId: {SubscriptionId} | VNetCount: {VNetCount}")]
+    public static partial void LogVNetsRetrieved(
         this ILogger logger,
         string subscriptionId,
-        int resourceListCount);
+        int vnetCount);
 
     [LoggerMessage(
-        EventId = 8061,
+        EventId = 9042,
         Level = LogLevel.Warning,
-        Message = "Invalid parameters for GetExistingResourceIds | HasSubscriptionId: {HasSubscriptionId} | HasResourceList: {HasResourceList}")]
-    public static partial void LogInvalidGetExistingResourceIdsParameters(
+        Message = "No VNets found for subscription | SubscriptionId: {SubscriptionId}")]
+    public static partial void LogNoVNetsFound(
         this ILogger logger,
-        bool hasSubscriptionId,
-        bool hasResourceList);
+        string subscriptionId);
 
     [LoggerMessage(
-        EventId = 8062,
-        Level = LogLevel.Information,
-        Message = "GetExistingResourceIds completed | ExistingResourceCount: {ExistingCount}")]
-    public static partial void LogGetExistingResourceIdsComplete(
-        this ILogger logger,
-        int existingCount);
-
-    [LoggerMessage(
-        EventId = 8063,
-        Level = LogLevel.Warning,
-        Message = "No data found in Resource Graph Explorer response for GetExistingResourceIds")]
-    public static partial void LogNoDataInResourceGraphResponse(this ILogger logger);
-
-    [LoggerMessage(
-        EventId = 8064,
+        EventId = 9043,
         Level = LogLevel.Error,
-        Message = "GetExistingResourceIds failed | SubscriptionId: {SubscriptionId}")]
-    public static partial void LogGetExistingResourceIdsFailed(
+        Message = "Failed to fetch VNets | SubscriptionId: {SubscriptionId}")]
+    public static partial void LogFetchVNetsFailed(
         this ILogger logger,
         Exception exception,
         string subscriptionId);
 
     // ============================================================
-    // GetExistingResourceIdsByType (EventIds 8080-8099)
+    // GetSubnets (EventIds 9050-9059)
     // ============================================================
 
     [LoggerMessage(
-        EventId = 8080,
+        EventId = 9050,
         Level = LogLevel.Information,
-        Message = "GetExistingResourceIdsByType started | SubscriptionId: {SubscriptionId} | ResourceTypeCount: {ResourceTypeCount}")]
-    public static partial void LogGetExistingResourceIdsByTypeStart(
+        Message = "Fetching subnets | VNetId: {VNetId}")]
+    public static partial void LogFetchingSubnets(
         this ILogger logger,
-        string subscriptionId,
-        int resourceTypeCount);
+        string vnetId);
 
     [LoggerMessage(
-        EventId = 8081,
-        Level = LogLevel.Warning,
-        Message = "Invalid parameters for GetExistingResourceIdsByType | HasSubscriptionId: {HasSubscriptionId} | HasResourceTypes: {HasResourceTypes}")]
-    public static partial void LogInvalidGetExistingResourceIdsByTypeParameters(
-        this ILogger logger,
-        bool hasSubscriptionId,
-        bool hasResourceTypes);
-
-    [LoggerMessage(
-        EventId = 8082,
-        Level = LogLevel.Debug,
-        Message = "Resource Graph query executed for types | Query: {QueryPreview}")]
-    public static partial void LogResourceGraphQueryExecuted(
-        this ILogger logger,
-        string queryPreview);
-
-    [LoggerMessage(
-        EventId = 8083,
+        EventId = 9051,
         Level = LogLevel.Information,
-        Message = "Initial response received | ResourceCount: {ResourceCount}")]
-    public static partial void LogInitialResponseReceived(
+        Message = "Subnets retrieved | VNetId: {VNetId} | SubnetCount: {SubnetCount}")]
+    public static partial void LogSubnetsRetrieved(
         this ILogger logger,
-        int resourceCount);
+        string vnetId,
+        int subnetCount);
 
     [LoggerMessage(
-        EventId = 8084,
+        EventId = 9052,
         Level = LogLevel.Warning,
-        Message = "Empty or null response data received")]
-    public static partial void LogEmptyOrNullResponseData(this ILogger logger);
-
-    [LoggerMessage(
-        EventId = 8085,
-        Level = LogLevel.Warning,
-        Message = "No valid resource IDs found in response")]
-    public static partial void LogNoValidResourceIdsInResponse(this ILogger logger);
-
-    [LoggerMessage(
-        EventId = 8086,
-        Level = LogLevel.Debug,
-        Message = "Processing pagination | SkipToken present")]
-    public static partial void LogProcessingPagination(this ILogger logger);
-
-    [LoggerMessage(
-        EventId = 8087,
-        Level = LogLevel.Debug,
-        Message = "Pagination page processed | PageResourceCount: {PageCount}")]
-    public static partial void LogPaginationPageProcessed(
+        Message = "No subnets found | VNetId: {VNetId}")]
+    public static partial void LogNoSubnetsFound(
         this ILogger logger,
-        int pageCount);
+        string vnetId);
 
     [LoggerMessage(
-        EventId = 8088,
-        Level = LogLevel.Information,
-        Message = "GetExistingResourceIdsByType completed | TotalResourceIds: {TotalCount}")]
-    public static partial void LogGetExistingResourceIdsByTypeComplete(
-        this ILogger logger,
-        int totalCount);
-
-    [LoggerMessage(
-        EventId = 8089,
+        EventId = 9053,
         Level = LogLevel.Error,
-        Message = "GetExistingResourceIdsByType failed | SubscriptionId: {SubscriptionId}")]
-    public static partial void LogGetExistingResourceIdsByTypeFailed(
+        Message = "Failed to fetch subnets | VNetId: {VNetId}")]
+    public static partial void LogFetchSubnetsFailed(
         this ILogger logger,
         Exception exception,
-        string subscriptionId);
+        string vnetId);
 
     // ============================================================
-    // ResourceExists (EventIds 8100-8119)
+    // ResourceExists (EventIds 9060-9069)
     // ============================================================
 
     [LoggerMessage(
-        EventId = 8100,
-        Level = LogLevel.Information,
-        Message = "ResourceExists check started | ResourceId: {ResourceId}")]
-    public static partial void LogResourceExistsStart(
+        EventId = 9060,
+        Level = LogLevel.Debug,
+        Message = "Checking if resource exists | ResourceId: {ResourceId}")]
+    public static partial void LogCheckingResourceExists(
         this ILogger logger,
         string resourceId);
 
     [LoggerMessage(
-        EventId = 8101,
-        Level = LogLevel.Warning,
-        Message = "ResourceExists check skipped - ResourceId is null or empty")]
-    public static partial void LogResourceIdNullOrEmpty(this ILogger logger);
-
-    [LoggerMessage(
-        EventId = 8102,
+        EventId = 9061,
         Level = LogLevel.Information,
-        Message = "ResourceExists check completed | ResourceId: {ResourceId} | Exists: {Exists}")]
-    public static partial void LogResourceExistsComplete(
+        Message = "Resource exists check complete | ResourceId: {ResourceId} | Exists: {Exists}")]
+    public static partial void LogResourceExistsResult(
         this ILogger logger,
         string resourceId,
         bool exists);
 
     [LoggerMessage(
-        EventId = 8103,
+        EventId = 9062,
         Level = LogLevel.Error,
-        Message = "ResourceExists check failed | ResourceId: {ResourceId}")]
-    public static partial void LogResourceExistsFailed(
+        Message = "Resource exists check failed | ResourceId: {ResourceId}")]
+    public static partial void LogResourceExistsCheckFailed(
         this ILogger logger,
         Exception exception,
         string resourceId);
 
     // ============================================================
-    // GetAllSubnetIds (EventIds 8120-8139)
+    // Batch Operations (EventIds 9070-9079)
     // ============================================================
 
     [LoggerMessage(
-        EventId = 8120,
+        EventId = 9070,
         Level = LogLevel.Information,
-        Message = "GetAllSubnetIds started | SubscriptionId: {SubscriptionId}")]
-    public static partial void LogGetAllSubnetIdsStart(
+        Message = "Starting batch resource lookup | BatchSize: {BatchSize} | TotalResources: {TotalResources}")]
+    public static partial void LogBatchOperationStart(
         this ILogger logger,
-        string subscriptionId);
+        int batchSize,
+        int totalResources);
 
     [LoggerMessage(
-        EventId = 8121,
+        EventId = 9071,
         Level = LogLevel.Information,
-        Message = "GetAllSubnetIds completed | SubnetCount: {SubnetCount}")]
-    public static partial void LogGetAllSubnetIdsComplete(
+        Message = "Batch processing progress | ProcessedCount: {ProcessedCount} | TotalCount: {TotalCount} | SuccessCount: {SuccessCount}")]
+    public static partial void LogBatchProgress(
         this ILogger logger,
-        int subnetCount);
+        int processedCount,
+        int totalCount,
+        int successCount);
 
     [LoggerMessage(
-        EventId = 8122,
-        Level = LogLevel.Error,
-        Message = "GetAllSubnetIds failed | SubscriptionId: {SubscriptionId}")]
-    public static partial void LogGetAllSubnetIdsFailed(
-        this ILogger logger,
-        Exception exception,
-        string subscriptionId);
-
-    // ============================================================
-    // GetResourcesHostedOnPlan (EventIds 8140-8159)
-    // ============================================================
-
-    [LoggerMessage(
-        EventId = 8140,
+        EventId = 9072,
         Level = LogLevel.Information,
-        Message = "GetResourcesHostedOnPlan started | AppServicePlanResourceId: {AppServicePlanResourceId}")]
-    public static partial void LogGetResourcesHostedOnPlanStart(
+        Message = "Batch operation complete | TotalProcessed: {TotalProcessed} | Duration: {DurationMs}ms | SuccessRate: {SuccessRate}%")]
+    public static partial void LogBatchOperationComplete(
         this ILogger logger,
-        string appServicePlanResourceId);
-
-    [LoggerMessage(
-        EventId = 8141,
-        Level = LogLevel.Warning,
-        Message = "AppServicePlanResourceId is null or empty")]
-    public static partial void LogAppServicePlanResourceIdEmpty(this ILogger logger);
-
-    [LoggerMessage(
-        EventId = 8142,
-        Level = LogLevel.Information,
-        Message = "GetResourcesHostedOnPlan completed | ResourceCount: {ResourceCount}")]
-    public static partial void LogGetResourcesHostedOnPlanComplete(
-        this ILogger logger,
-        int resourceCount);
-
-    [LoggerMessage(
-        EventId = 8143,
-        Level = LogLevel.Warning,
-        Message = "No resources found hosted on App Service Plan")]
-    public static partial void LogNoResourcesFoundOnPlan(this ILogger logger);
-
-    [LoggerMessage(
-        EventId = 8144,
-        Level = LogLevel.Error,
-        Message = "GetResourcesHostedOnPlan failed | AppServicePlanResourceId: {AppServicePlanResourceId}")]
-    public static partial void LogGetResourcesHostedOnPlanFailed(
-        this ILogger logger,
-        Exception exception,
-        string appServicePlanResourceId);
-
-    // ============================================================
-    // GetFrontDoorUniqueInstanceIds (EventIds 8160-8179)
-    // ============================================================
-
-    [LoggerMessage(
-        EventId = 8160,
-        Level = LogLevel.Information,
-        Message = "GetFrontDoorUniqueInstanceIds started | ResourceIdCount: {ResourceIdCount}")]
-    public static partial void LogGetFrontDoorIdsStart(
-        this ILogger logger,
-        int resourceIdCount);
-
-    [LoggerMessage(
-        EventId = 8161,
-        Level = LogLevel.Warning,
-        Message = "No distinct resource IDs found for Front Door instance retrieval")]
-    public static partial void LogNoDistinctFrontDoorIds(this ILogger logger);
-
-    [LoggerMessage(
-        EventId = 8162,
-        Level = LogLevel.Information,
-        Message = "GetFrontDoorUniqueInstanceIds completed | FrontDoorCount: {FrontDoorCount}")]
-    public static partial void LogGetFrontDoorIdsComplete(
-        this ILogger logger,
-        int frontDoorCount);
-
-    [LoggerMessage(
-        EventId = 8163,
-        Level = LogLevel.Error,
-        Message = "Missing resource ID or FDID for Front Door resource | ResourceId: {ResourceId}")]
-    public static partial void LogMissingFrontDoorIdOrFdid(
-        this ILogger logger,
-        string resourceId);
-
-    [LoggerMessage(
-        EventId = 8164,
-        Level = LogLevel.Error,
-        Message = "GetFrontDoorUniqueInstanceIds failed")]
-    public static partial void LogGetFrontDoorIdsFailed(
-        this ILogger logger,
-        Exception exception);
-
-    // ============================================================
-    // GetWebAppSlots (EventIds 8180-8199)
-    // ============================================================
-
-    [LoggerMessage(
-        EventId = 8180,
-        Level = LogLevel.Information,
-        Message = "GetWebAppSlots started | WebAppId: {WebAppId}")]
-    public static partial void LogGetWebAppSlotsStart(
-        this ILogger logger,
-        string webAppId);
-
-    [LoggerMessage(
-        EventId = 8181,
-        Level = LogLevel.Warning,
-        Message = "WebAppId is null or empty for GetWebAppSlots")]
-    public static partial void LogWebAppIdNullOrEmpty(this ILogger logger);
-
-    [LoggerMessage(
-        EventId = 8182,
-        Level = LogLevel.Information,
-        Message = "GetWebAppSlots completed | WebAppId: {WebAppId} | SlotsFound: {SlotCount}")]
-    public static partial void LogGetWebAppSlotsComplete(
-        this ILogger logger,
-        string webAppId,
-        int slotCount);
-
-    [LoggerMessage(
-        EventId = 8183,
-        Level = LogLevel.Error,
-        Message = "GetWebAppSlots failed | WebAppId: {WebAppId}")]
-    public static partial void LogGetWebAppSlotsFailed(
-        this ILogger logger,
-        Exception exception,
-        string webAppId);
+        int totalProcessed,
+        long durationMs,
+        double successRate);
 
     // ============================================================
     // Scoped Logging Helpers
     // ============================================================
 
     /// <summary>
-    /// Creates a logging scope for Resource Graph Explorer operations.
+    /// Creates a logging scope for Resource Graph Explorer service operations.
     /// </summary>
     public static IDisposable? BeginResourceGraphScope(
         this ILogger logger,
@@ -476,7 +287,7 @@ namespace DynamicAllowListingLib.Logging
         ["ServiceName"] = "ResourceGraphExplorerService",
         ["MethodName"] = methodName,
         ["SubscriptionCount"] = subscriptionIds?.Length ?? 0,
-        ["CorrelationId"] = CorrelationContext.CorrelationId,
+        ["CorrelationId"] = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N"),
         ["Timestamp"] = DateTimeOffset.UtcNow
       });
     }
@@ -493,7 +304,7 @@ namespace DynamicAllowListingLib.Logging
       {
         ["QueryType"] = queryType,
         ["SubscriptionId"] = subscriptionId,
-        ["CorrelationId"] = CorrelationContext.CorrelationId
+        ["CorrelationId"] = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N")
       });
     }
 
@@ -508,7 +319,25 @@ namespace DynamicAllowListingLib.Logging
       {
         ["OperationType"] = "ResourceExistsCheck",
         ["ResourceId"] = resourceId ?? "Unknown",
-        ["CorrelationId"] = CorrelationContext.CorrelationId
+        ["CorrelationId"] = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N")
+      });
+    }
+
+    /// <summary>
+    /// Creates a logging scope for batch operations.
+    /// </summary>
+    public static IDisposable? BeginBatchOperationScope(
+        this ILogger logger,
+        string operationName,
+        int batchSize)
+    {
+      return logger.BeginScope(new Dictionary<string, object>
+      {
+        ["OperationType"] = "BatchOperation",
+        ["OperationName"] = operationName,
+        ["BatchSize"] = batchSize,
+        ["CorrelationId"] = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N"),
+        ["Timestamp"] = DateTimeOffset.UtcNow
       });
     }
   }

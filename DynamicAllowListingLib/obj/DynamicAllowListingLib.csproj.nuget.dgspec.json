@@ -59,6 +59,10 @@
               "target": "Package",
               "version": "[3.0.667, )"
             },
+            "Microsoft.ApplicationInsights": {
+              "target": "Package",
+              "version": "[2.22.0, )"
+            },
             "Microsoft.Azure.Cosmos": {
               "target": "Package",
               "version": "[3.17.1, )"

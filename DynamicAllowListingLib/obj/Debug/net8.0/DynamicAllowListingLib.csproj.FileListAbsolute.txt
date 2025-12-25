@@ -28,3 +28,9 @@ C:\WORK_DND\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib
 C:\WORK_DND\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Debug\net8.0\refint\DynamicAllowListingLib.dll
 C:\WORK_DND\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Debug\net8.0\DynamicAllowListingLib.pdb
 C:\WORK_DND\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Debug\net8.0\ref\DynamicAllowListingLib.dll
+C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Debug\net8.0\DynamicAllowListingLib.csproj.AssemblyReference.cache
+C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Debug\net8.0\DynamicAllowListingLib.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Debug\net8.0\DynamicAllowListingLib.AssemblyInfoInputs.cache
+C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Debug\net8.0\DynamicAllowListingLib.AssemblyInfo.cs
+C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Debug\net8.0\DynamicAllowListingLib.csproj.CoreCompileInputs.cache
+C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Debug\net8.0\DynamicAllowListingLib.sourcelink.json
