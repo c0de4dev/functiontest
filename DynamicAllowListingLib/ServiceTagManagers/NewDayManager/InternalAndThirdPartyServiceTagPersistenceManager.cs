@@ -1,4 +1,4 @@
-﻿using DynamicAllowListingLib.Logger;
+﻿using DynamicAllowListingLib.Logging;
 using DynamicAllowListingLib.ServiceTagManagers.Model;
 using Microsoft.Extensions.Logging;
 using System;
@@ -40,73 +40,68 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
 
     public async Task UpdateDatabaseStateTo(InternalAndThirdPartyServiceTagSetting internalAndThirdPartyServiceTagSetting)
     {
-      FunctionLogger.MethodStart(_logger, nameof(UpdateDatabaseStateTo));
-
       if (internalAndThirdPartyServiceTagSetting == null)
       {
-        FunctionLogger.MethodError(_logger, "Provided settings object is null.");
+        _logger.LogSettingsObjectNull();
         throw new ArgumentNullException(nameof(internalAndThirdPartyServiceTagSetting), "Settings object cannot be null.");
       }
       try
-      {        
+      {
         // Validate settings before proceeding
         if ((internalAndThirdPartyServiceTagSetting.AzureSubscriptions == null || !internalAndThirdPartyServiceTagSetting.AzureSubscriptions.Any()) &&
             (internalAndThirdPartyServiceTagSetting.ServiceTags == null || !internalAndThirdPartyServiceTagSetting.ServiceTags.Any()))
         {
-          string errorMessage = "Both AzureSubscriptions and ServiceTags are null or empty. Nothing to update.";
-          FunctionLogger.MethodWarning(_logger, errorMessage);
-          throw new InvalidOperationException(errorMessage);
+          _logger.LogSettingsEmpty();
+          throw new InvalidOperationException("Both AzureSubscriptions and ServiceTags are null or empty. Nothing to update.");
         }
-        FunctionLogger.MethodInformation(_logger, "Starting database state update.");
+        _logger.LogStartingDatabaseUpdate();
 
         // Update Azure Subscriptions
         if (internalAndThirdPartyServiceTagSetting.AzureSubscriptions != null && internalAndThirdPartyServiceTagSetting.AzureSubscriptions.Any())
         {
-          FunctionLogger.MethodInformation(_logger, $"Updating Azure Subscriptions. Count: {internalAndThirdPartyServiceTagSetting.AzureSubscriptions.Count}");
+          _logger.LogUpdatingAzureSubscriptions(internalAndThirdPartyServiceTagSetting.AzureSubscriptions.Count);
           await _azureSubscriptionsPersistenceManager.UpdateDatabaseStateTo(internalAndThirdPartyServiceTagSetting.AzureSubscriptions);
         }
         // Update Service Tags
         if (internalAndThirdPartyServiceTagSetting.ServiceTags != null && internalAndThirdPartyServiceTagSetting.ServiceTags.Any())
         {
-          FunctionLogger.MethodInformation(_logger, $"Updating Service Tags. Count: {internalAndThirdPartyServiceTagSetting.ServiceTags.Count}");
+          _logger.LogUpdatingServiceTags(internalAndThirdPartyServiceTagSetting.ServiceTags.Count);
           await _serviceTagsPersistenceManager.UpdateDatabaseStateTo(internalAndThirdPartyServiceTagSetting.ServiceTags);
         }
-        FunctionLogger.MethodInformation(_logger, "Database state update completed successfully.");
+        _logger.LogDatabaseUpdateCompleted();
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogOperationException(ex);
         throw;
       }
     }
 
     public async Task<InternalAndThirdPartyServiceTagSetting> GetFromDatabase()
     {
-      FunctionLogger.MethodStart(_logger, nameof(GetFromDatabase));
       var internalAndThirdPartyServiceTagSetting = new InternalAndThirdPartyServiceTagSetting();
       try
       {
         // Retrieve Azure Subscriptions
-        FunctionLogger.MethodInformation(_logger, "Retrieving Azure Subscriptions from database.");
+        _logger.LogRetrievingAzureSubscriptions();
         var azureSubscriptions = await _azureSubscriptionsPersistenceManager.GetFromDatabase();
         internalAndThirdPartyServiceTagSetting.AzureSubscriptions = azureSubscriptions ?? new List<AzureSubscription>();
-        FunctionLogger.MethodInformation(_logger, $"Retrieved {internalAndThirdPartyServiceTagSetting.AzureSubscriptions.Count} Azure Subscriptions from database.");
+        _logger.LogRetrievedAzureSubscriptions(internalAndThirdPartyServiceTagSetting.AzureSubscriptions.Count);
 
         // Retrieve Service Tags
-        FunctionLogger.MethodInformation(_logger, "Retrieving Service Tags from database.");
+        _logger.LogRetrievingServiceTags();
         var serviceTags = await _serviceTagsPersistenceManager.GetFromDatabase();
         internalAndThirdPartyServiceTagSetting.ServiceTags = serviceTags ?? new List<ServiceTag>();
-        FunctionLogger.MethodInformation(_logger, $"Retrieved {internalAndThirdPartyServiceTagSetting.ServiceTags.Count} Service Tags from database.");
+        _logger.LogRetrievedServiceTagsCount(internalAndThirdPartyServiceTagSetting.ServiceTags.Count);
 
         // Log final result
-        string successLog = $"Successfully retrieved database settings. " +
-                            $"Number of Azure Subscriptions: {internalAndThirdPartyServiceTagSetting.AzureSubscriptions.Count}, " +
-                            $"Number of Service Tags: {internalAndThirdPartyServiceTagSetting.ServiceTags.Count}";
-        FunctionLogger.MethodInformation(_logger, successLog);
+        _logger.LogDatabaseSettingsRetrieved(
+          internalAndThirdPartyServiceTagSetting.AzureSubscriptions.Count,
+          internalAndThirdPartyServiceTagSetting.ServiceTags.Count);
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogOperationException(ex);
         throw;
       }
       return internalAndThirdPartyServiceTagSetting;

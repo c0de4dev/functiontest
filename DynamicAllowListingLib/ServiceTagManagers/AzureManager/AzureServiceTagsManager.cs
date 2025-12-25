@@ -1,4 +1,5 @@
-﻿using DynamicAllowListingLib.Logger;
+﻿using DynamicAllowListingLib.Helpers;
+using DynamicAllowListingLib.Logging;
 using DynamicAllowListingLib.Models;
 using DynamicAllowListingLib.Services;
 using Microsoft.Extensions.Logging;
@@ -22,7 +23,7 @@ namespace DynamicAllowListingLib.ServiceTagManagers.AzureManager
         return ManagerType.Azure;
       }
     }
-    public AzureServiceTagsManager(IAzureServiceTagsJsonHelper azureServiceTagsJsonHelper,ILogger<AzureServiceTagsManager> logger)
+    public AzureServiceTagsManager(IAzureServiceTagsJsonHelper azureServiceTagsJsonHelper, ILogger<AzureServiceTagsManager> logger)
     {
       _logger = logger;
       _azureServiceTagsJsonHelper = azureServiceTagsJsonHelper;
@@ -30,9 +31,7 @@ namespace DynamicAllowListingLib.ServiceTagManagers.AzureManager
 
     public async Task<bool> IsServiceTagExists(string serviceTagName, string requestedSubscriptionId)
     {
-      FunctionLogger.MethodStart(_logger, nameof(IsServiceTagExists));
-
-      FunctionLogger.MethodInformation(_logger, $"Checking for existence of Service Tag {serviceTagName} exist for Subscription ID {requestedSubscriptionId}.");
+      _logger.LogCheckingAzureServiceTagExists(serviceTagName, requestedSubscriptionId);
 
       var azureServiceTags = await GetAzureServiceTags(requestedSubscriptionId);
 
@@ -42,12 +41,12 @@ namespace DynamicAllowListingLib.ServiceTagManagers.AzureManager
         serviceTagExists = azureServiceTags.Values.Any(azureServiceTag => azureServiceTag.Name.Equals(serviceTagName));
         if (serviceTagExists == true)
         {
-          FunctionLogger.MethodInformation(_logger, $"Service Tag {serviceTagName} exist for Subscription ID {requestedSubscriptionId}.");
+          _logger.LogAzureServiceTagExists(serviceTagName, requestedSubscriptionId);
           return serviceTagExists;
         }
         else
         {
-          FunctionLogger.MethodInformation(_logger, $"Service Tag {serviceTagName} does not exist for Subscription ID {requestedSubscriptionId}.");
+          _logger.LogAzureServiceTagNotExists(serviceTagName, requestedSubscriptionId);
         }
       }
       return serviceTagExists;
@@ -55,28 +54,27 @@ namespace DynamicAllowListingLib.ServiceTagManagers.AzureManager
 
     private async Task<AzureServiceTags?> GetAzureServiceTags(string requestedSubscriptionId)
     {
-      FunctionLogger.MethodStart(_logger, nameof(GetAzureServiceTags));
       if (_azureServiceTags == null)
       {
         string azureServiceTagsJson = await _azureServiceTagsJsonHelper.GetAzureServiceTagsJson(requestedSubscriptionId);
         if (string.IsNullOrEmpty(azureServiceTagsJson))
         {
-          FunctionLogger.MethodInformation(_logger, $"Failed to retrieve Azure Service Tags JSON for Subscription ID: {requestedSubscriptionId}. Response was null or empty.");
+          _logger.LogAzureServiceTagsJsonEmpty(requestedSubscriptionId);
           //throw new Exception("AzureServiceTags JSON could not be obtained.");
         }
         _azureServiceTags = JsonConvert.DeserializeObject<AzureServiceTags>(azureServiceTagsJson);
         if (_azureServiceTags == null)
         {
-          FunctionLogger.MethodWarning(_logger, $"Deserialization of Azure Service Tags failed for Subscription ID: {requestedSubscriptionId}.");
+          _logger.LogAzureServiceTagsDeserializationFailed(requestedSubscriptionId);
           //throw new Exception("AzureServiceTags could not be obtained.");
         }
-        FunctionLogger.MethodInformation(_logger, $"Successfully retrieved and deserialized Azure Service Tags for Subscription ID: {requestedSubscriptionId}.");
+        _logger.LogAzureServiceTagsRetrieved(requestedSubscriptionId);
 
         return _azureServiceTags;
       }
       else
       {
-        FunctionLogger.MethodInformation(_logger, $"Using cached Azure Service Tags for Subscription ID: {requestedSubscriptionId}.");
+        _logger.LogUsingCachedAzureServiceTags(requestedSubscriptionId);
         return _azureServiceTags;
       }
     }
@@ -84,7 +82,6 @@ namespace DynamicAllowListingLib.ServiceTagManagers.AzureManager
     public virtual async Task<HashSet<IpSecurityRestrictionRule>> GenerateRulesByName(string subscriptionId, string[] serviceTags,
       bool includeMandatoryRulesForSubscription = true)
     {
-      FunctionLogger.MethodStart(_logger, nameof(GenerateRulesByName));
       // Retrieve the rules based on the provided service tags and subscription ID
       var rules = await GetAzureServiceTagRules(serviceTags, subscriptionId);
       _logger.LogInformation("Generated {RuleCount} rules for Subscription ID '{SubscriptionId}'",
@@ -95,17 +92,16 @@ namespace DynamicAllowListingLib.ServiceTagManagers.AzureManager
 
     internal async Task<HashSet<IpSecurityRestrictionRule>> GetAzureServiceTagRules(string[] serviceTags, string requestedSubscriptionId)
     {
-      FunctionLogger.MethodStart(_logger, nameof(GetAzureServiceTagRules));
       // Validate inputs
       if (serviceTags == null || serviceTags.Length == 0)
       {
-        FunctionLogger.MethodWarning(_logger, $"Invalid input: Service tags are null or empty for Subscription ID: { requestedSubscriptionId}");
-        Exception ex =  new ArgumentException("Service tags must not be null or empty.", nameof(serviceTags));
+        _logger.LogServiceTagsNullOrEmpty(requestedSubscriptionId);
+        Exception ex = new ArgumentException("Service tags must not be null or empty.", nameof(serviceTags));
         throw ex;
       }
       if (string.IsNullOrEmpty(requestedSubscriptionId))
       {
-        FunctionLogger.MethodWarning(_logger, $"Invalid input: Subscription ID is null or empty.");
+        _logger.LogSubscriptionIdNullOrEmpty();
         //throw new ArgumentException("Subscription ID must not be null or empty.", nameof(requestedSubscriptionId));
       }
 
@@ -114,15 +110,15 @@ namespace DynamicAllowListingLib.ServiceTagManagers.AzureManager
       {
         var nonExistentServiceTags = new List<string>();
 
-        FunctionLogger.MethodInformation(_logger, $"Fetching Azure Service Tags for Subscription ID: {requestedSubscriptionId}");
+        _logger.LogFetchingAzureServiceTags(requestedSubscriptionId);
         var azureServiceTags = await GetAzureServiceTags(requestedSubscriptionId);
-        FunctionLogger.MethodInformation(_logger, $"Retrieved {azureServiceTags?.Values.Count} Azure Service Tags for Subscription ID: {requestedSubscriptionId}");
+        _logger.LogRetrievedAzureServiceTags(azureServiceTags?.Values.Count, requestedSubscriptionId);
 
         if (azureServiceTags != null)
         {
           foreach (var serviceTag in serviceTags)
           {
-            FunctionLogger.MethodInformation(_logger, $"Processing Service Tag: {serviceTag}");
+            _logger.LogProcessingServiceTag(serviceTag);
             bool serviceTagFound = false;
             foreach (var azureServiceTag in azureServiceTags.Values)
             {
@@ -136,49 +132,48 @@ namespace DynamicAllowListingLib.ServiceTagManagers.AzureManager
               var ipSecRules = GetAzureServiceTagRules(azureServiceTag);
               ipSecurityRestrictionRules.UnionWith(ipSecRules);
 
-              FunctionLogger.MethodInformation(_logger, $"Found {ipSecRules.Count} rules for Service Tag: {serviceTag}.");
+              _logger.LogFoundRulesForServiceTag(ipSecRules.Count, serviceTag);
             }
             if (!serviceTagFound)
             {
-              FunctionLogger.MethodInformation(_logger, $"Service Tag: '{serviceTag}' not found in Azure Service Tags.");
+              _logger.LogServiceTagNotFoundInAzure(serviceTag);
               nonExistentServiceTags.Add(serviceTag);
             }
           }
           if (nonExistentServiceTags.Count > 0)
           {
-            FunctionLogger.MethodInformation(_logger, $"The following Azure Service Tags were not found: {string.Join(", ", nonExistentServiceTags)}, Subscription ID:{requestedSubscriptionId} .");
+            _logger.LogServiceTagsNotFound(string.Join(", ", nonExistentServiceTags), requestedSubscriptionId);
             throw new AzureServiceTagNotFoundException(nonExistentServiceTags);
           }
         }
-        FunctionLogger.MethodInformation(_logger, $"Successfully retrieved {ipSecurityRestrictionRules.Count} IP Security Restriction Rules for Subscription ID: {requestedSubscriptionId}");
+        _logger.LogRetrievedIpSecurityRules(ipSecurityRestrictionRules.Count, requestedSubscriptionId);
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex, $"An unexpected error occurred while processing service tags for Subscription ID: {requestedSubscriptionId}.");
+        _logger.LogUnexpectedErrorProcessingServiceTags(ex, requestedSubscriptionId);
         throw; // Rethrow for higher-level handling
       }
       return ipSecurityRestrictionRules;
     }
-     
+
     internal HashSet<IpSecurityRestrictionRule> GetAzureServiceTagRules(AzureServiceTags.AzureServiceTag azureServiceTag)
     {
-      FunctionLogger.MethodStart(_logger, nameof(GetAzureServiceTagRules));
       // Validate input
       if (azureServiceTag == null)
       {
-        FunctionLogger.MethodWarning(_logger, $"Invalid input: Azure Service Tag is null.");
+        _logger.LogAzureServiceTagNull();
         Exception ex = new ArgumentNullException(nameof(azureServiceTag), "Azure Service Tag must not be null.");
         throw ex;
       }
 
-      FunctionLogger.MethodInformation(_logger, $"Generating security restriction rules for Azure Service Tag: {azureServiceTag.Name}.");
+      _logger.LogGeneratingRulesForAzureServiceTag(azureServiceTag.Name ?? "Unknown");
 
       var secRules = new HashSet<IpSecurityRestrictionRule>();
 
       // Check if the service tag contains IPv4 address prefixes
       if (azureServiceTag.Properties?.AddressPrefixesIpV4 == null || !azureServiceTag.Properties.AddressPrefixesIpV4.Any())
       {
-        FunctionLogger.MethodWarning(_logger, $"No IP Address Prefixes found for Azure Service Tag: {azureServiceTag.Name}.");
+        _logger.LogNoIpPrefixesForAzureServiceTag(azureServiceTag.Name ?? "Unknown");
         return secRules; // Return empty set
       }
       // Generate security restriction rules
@@ -194,17 +189,17 @@ namespace DynamicAllowListingLib.ServiceTagManagers.AzureManager
           Priority = 500
         };
         // Add rule to the set
-        if(secRules.Add(rule))
+        if (secRules.Add(rule))
         {
-          FunctionLogger.MethodInformation(_logger, $"Created rule: {rule.Name}, IP Address: {rule.IpAddress}, Action: {rule.Action}, Priority: {rule.Priority}");
+          _logger.LogRuleCreated(rule.Name ?? "Unknown", rule.IpAddress ?? "Unknown", rule.Action ?? "Allow", rule.Priority);
         }
         else
         {
-          FunctionLogger.MethodWarning(_logger, $"Duplicate rule detected and ignored: {rule.Name}, IP Address: {rule.IpAddress}.");
+          _logger.LogDuplicateRuleIgnored(rule.Name ?? "Unknown", rule.IpAddress ?? "Unknown");
         }
         index++;
       }
-      FunctionLogger.MethodInformation(_logger, $"Successfully generated {secRules.Count} security restriction rules for Azure Service Tag: {azureServiceTag.Name}.");
+      _logger.LogGeneratedRulesForAzureServiceTag(secRules.Count, azureServiceTag.Name ?? "Unknown");
       return secRules;
     }
 
@@ -219,8 +214,8 @@ namespace DynamicAllowListingLib.ServiceTagManagers.AzureManager
   {
     private readonly ILogger _logger;
     public AzureWebServiceTagManager(IAzureServiceTagsJsonHelper azureServiceTagsJsonHelper,
-      ILogger<AzureServiceTagsManager> logger): base(azureServiceTagsJsonHelper, logger)
-    { 
+      ILogger<AzureServiceTagsManager> logger) : base(azureServiceTagsJsonHelper, logger)
+    {
       _logger = logger;
     }
     public new ManagerType SupportedManager => ManagerType.AzureWeb;
@@ -231,35 +226,29 @@ namespace DynamicAllowListingLib.ServiceTagManagers.AzureManager
       var secRules = new HashSet<IpSecurityRestrictionRule>();
       try
       {
-        // Log method start
-        FunctionLogger.MethodStart(_logger, nameof(GenerateRulesByName));
-
         // Validate inputs
         /*
         if (string.IsNullOrWhiteSpace(subscriptionId))
         {
           string errorMessage = "Subscription ID cannot be null, empty, or whitespace.";
-          FunctionLogger.MethodWarning(_logger, errorMessage);
+          _logger.LogWarning(errorMessage);
           //throw new ArgumentException(errorMessage, nameof(subscriptionId));
         }
         */
         if (serviceTags == null || serviceTags.Length == 0)
         {
-          FunctionLogger.MethodInformation(_logger,
-              $"No service tags provided for SubscriptionID: {subscriptionId}. Returning an empty rule set.");
+          _logger.LogNoServiceTagsProvided(subscriptionId);
           return Task.FromResult(secRules);
         }
 
-        FunctionLogger.MethodInformation(_logger,
-          $"Generating security restriction rules for Subscription ID: {subscriptionId} with Service Tags: {string.Join(", ", serviceTags)}");
+        _logger.LogGeneratingSecurityRules(subscriptionId, string.Join(", ", serviceTags));
 
         // Generate rules for each service tag
         foreach (var serviceTag in serviceTags)
         {
           if (string.IsNullOrWhiteSpace(serviceTag))
           {
-            FunctionLogger.MethodWarning(_logger,
-                $"Encountered a null or empty service tag for Subscription ID: {subscriptionId}. Skipping.");
+            _logger.LogNullOrEmptyServiceTag(subscriptionId);
             continue;
           }
 
@@ -274,22 +263,19 @@ namespace DynamicAllowListingLib.ServiceTagManagers.AzureManager
 
           if (!secRules.Add(rule))
           {
-            FunctionLogger.MethodWarning(_logger,
-                $"Duplicate rule detected for Service Tag: {serviceTag}. Rule was not added again.");
+            _logger.LogDuplicateRule(serviceTag);
           }
           else
           {
-            FunctionLogger.MethodInformation(_logger,
-                $"Created rule: {rule.Name}, IP Address: {rule.IpAddress}, Action: {rule.Action}, Priority: {rule.Priority}, Tag: {rule.Tag}");
+            _logger.LogRuleCreatedWithTag(rule.Name ?? "Unknown", rule.IpAddress ?? "Unknown", rule.Action ?? "Allow", rule.Priority, rule.Tag ?? "ServiceTag");
           }
         }
         // Log the total number of generated rules
-        FunctionLogger.MethodInformation(_logger,
-            $"Successfully generated {secRules.Count} security restriction rules for Subscription ID: {subscriptionId}.");
+        _logger.LogSecurityRulesGenerated(secRules.Count, subscriptionId);
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogRuleGenerationException(ex);
         throw; // Re-throw for higher-level handling
       }
       return Task.FromResult(secRules);

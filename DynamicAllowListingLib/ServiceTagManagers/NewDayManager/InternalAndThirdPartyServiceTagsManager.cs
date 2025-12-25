@@ -1,4 +1,5 @@
-﻿using DynamicAllowListingLib.Logger;
+﻿using DynamicAllowListingLib.Helpers;
+using DynamicAllowListingLib.Logging;
 using DynamicAllowListingLib.ServiceTagManagers.Model;
 using Microsoft.Extensions.Logging;
 using System;
@@ -24,7 +25,7 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
     private readonly ILogger<InternalAndThirdPartyServiceTagsManager> _logger;
     public ManagerType SupportedManager => ManagerType.NewDay;
 
-    public InternalAndThirdPartyServiceTagsManager(ISettingLoader settingLoader, 
+    public InternalAndThirdPartyServiceTagsManager(ISettingLoader settingLoader,
       IInternalAndThirdPartyServiceTagPersistenceManager internalAndThirdPartyServiceTagPersistenceManager, ILogger<InternalAndThirdPartyServiceTagsManager> logger)
     {
       _internalAndThirdPartyServiceTagPersistenceManager = internalAndThirdPartyServiceTagPersistenceManager;
@@ -35,53 +36,49 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
 
     private async Task<InternalAndThirdPartyServiceTagSetting> GetSettings()
     {
-      FunctionLogger.MethodStart(_logger, nameof(GetSettings));
       InternalAndThirdPartyServiceTagSetting setting = new InternalAndThirdPartyServiceTagSetting();
       try
       {
-        FunctionLogger.MethodInformation(_logger, "Attempting to get settings from the database.");
+        _logger.LogGettingSettingsFromDb();
         var settings = await _internalAndThirdPartyServiceTagPersistenceManager.GetFromDatabase();
         // Check if the retrieved settings are empty
         if (settings.AzureSubscriptions.Count <= 0 || settings.ServiceTags.Count <= 0)
         {
-          string infoMessage = "Database settings are empty or incomplete. Loading settings from file.";
-          FunctionLogger.MethodInformation(_logger, infoMessage);
+          _logger.LogLoadingSettingsFromFile();
 
           // Attempt to load settings from the file if the database has no data
           settings = await _settingLoader.LoadSettingsFromFile<InternalAndThirdPartyServiceTagSetting>(
             InternalAndThirdPartyServiceTagSettingFileHelper.GetFilePath());
 
           // Log the action of loading settings from the file
-          FunctionLogger.MethodInformation(_logger, "Settings loaded successfully from file.");
+          _logger.LogSettingsLoadedFromFile();
         }
         else
         {
-          FunctionLogger.MethodInformation(_logger, $"Settings successfully retrieved from database. ServiceTags count: {settings.ServiceTags.Count}, AzureSubscriptions count: {settings.AzureSubscriptions.Count}.");
+          _logger.LogSettingsRetrievedFromDb(settings.ServiceTags.Count, settings.AzureSubscriptions.Count);
         }
         return settings;
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogOperationException(ex);
         return setting;
       }
     }
 
     public async Task<List<ServiceTag>> GetAllServiceTagsBySubscriptionID(string subscriptionId)
     {
-      FunctionLogger.MethodStart(_logger, nameof(GetAllServiceTagsBySubscriptionID));
       List<ServiceTag> emptyServiceTags = new List<ServiceTag>();
       try
       {
         // Validate if subscriptionId is provided
         if (string.IsNullOrEmpty(subscriptionId))
         {
-          string errorMessage = "Empty or null Subscription ID provided.";
-          FunctionLogger.MethodWarning(_logger, errorMessage);
+          _logger.LogEmptySubscriptionId();
           return emptyServiceTags;
         }
         // Logging the attempt to fetch service tags by subscription ID
-        FunctionLogger.MethodInformation(_logger, $"Fetching service tags for Subscription ID: {subscriptionId}");
+        _logger.LogFetchingServiceTagsBySubscription(subscriptionId);
 
         // Fetch the settings and retrieve the relevant data
         var data = await _settings.Value;
@@ -89,8 +86,7 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
         if (subscription == null)
         {
           // Logging the situation where the subscription was not found
-          string errorMessage = $"Subscription with ID '{subscriptionId}' not found.";
-          FunctionLogger.MethodWarning(_logger, errorMessage);
+          _logger.LogServiceTagSubscriptionNotFound(subscriptionId);
           return emptyServiceTags;
         }
         // Adding subscriptionName to the logging context
@@ -100,38 +96,35 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
             .Where(x => x.AllowedSubscriptions.Any(s => s.SubscriptionName == subscriptionName))
             .ToList();
 
-        FunctionLogger.MethodInformation(_logger, $"Found {serviceTags.Count} service tags for subscription '{subscriptionName}'.");
+        _logger.LogFoundServiceTagsForSubscription(serviceTags.Count, subscriptionName ?? "Unknown");
         return serviceTags;
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogOperationException(ex);
         return emptyServiceTags;
       }
     }
 
     public async Task<List<ServiceTag>> GetAllServiceTagsBySubscriptionID(string subscriptionId, bool isMandatory)
     {
-      FunctionLogger.MethodStart(_logger, nameof(GetAllServiceTagsBySubscriptionID));
       List<ServiceTag> emptyServiceTags = new List<ServiceTag>();
       try
-      {        
+      {
         // Validate if the subscriptionId is provided
         if (string.IsNullOrEmpty(subscriptionId))
         {
-          string warningMessage = "Empty or null Subscription ID provided.";
-          FunctionLogger.MethodWarning(_logger, warningMessage);
+          _logger.LogEmptySubscriptionId();
           return emptyServiceTags;
         }
-        FunctionLogger.MethodInformation(_logger, $"Fetching service tags by subscription ID: {subscriptionId} and mandatory: {isMandatory}");
+        _logger.LogFetchingServiceTagsWithMandatory(subscriptionId, isMandatory);
         // Fetch the settings and retrieve the relevant data
         var data = await _settings.Value;
-        var subscription = data.AzureSubscriptions.First(x => x.Id == subscriptionId);
+        var subscription = data.AzureSubscriptions.FirstOrDefault(x => x.Id == subscriptionId);
         // Check if subscription exists
         if (subscription == null)
         {
-          string warningMessage = $"Subscription with ID '{subscriptionId}' not found.";
-          FunctionLogger.MethodWarning(_logger, warningMessage);
+          _logger.LogServiceTagSubscriptionNotFound(subscriptionId);
           return emptyServiceTags;
         }
         // Adding subscriptionName to the logging context
@@ -142,27 +135,25 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
             .ToList();
 
         // Log the result of the query
-        FunctionLogger.MethodInformation(_logger, $"Found {serviceTags.Count} service tags for subscription '{subscriptionName}' with Mandatory flag '{isMandatory}'.");
+        _logger.LogFoundServiceTagsWithMandatory(serviceTags.Count, subscriptionName ?? "Unknown", isMandatory);
         return serviceTags;
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogOperationException(ex);
         return emptyServiceTags;
       }
     }
 
     public async Task<HashSet<IpSecurityRestrictionRule>> GenerateRulesByName(string subscriptionId, string[] serviceTags, bool includeMandatoryRulesForSubscription = true)
     {
-      FunctionLogger.MethodStart(_logger, nameof(GenerateRulesByName));
       var results = new HashSet<IpSecurityRestrictionRule>();
       try
       {
         // Early return if subscriptionId is invalid or empty
         if (string.IsNullOrEmpty(subscriptionId) || !Guid.TryParse(subscriptionId, out _))
         {
-          string warningMessage = "Invalid or empty subscription ID provided. Returning empty rules set.";
-          FunctionLogger.MethodWarning(_logger, warningMessage);
+          _logger.LogInvalidSubscriptionIdForRules();
           return results; // Return empty HashSet directly
         }
         // Fetch settings data asynchronously
@@ -172,15 +163,14 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
         var subscription = data.AzureSubscriptions.FirstOrDefault(x => x.Id == subscriptionId);
         if (subscription == null)
         {
-          string warningMessage = $"Subscription with ID '{subscriptionId}' not found. Returning empty rules set.";
-          FunctionLogger.MethodWarning(_logger, warningMessage);
+          _logger.LogSubscriptionNotFoundForRules(subscriptionId);
           return results; // Return empty HashSet directly
         }
 
         var subscriptionName = subscription.Name;
         // Loop through service tags to generate rules
         foreach (var tag in data.ServiceTags)
-        {  
+        {
           // Check if the tag should be included based on serviceTags array and mandatory rules
           if ((serviceTags != null && serviceTags.Length > 0
            && serviceTags.Contains(tag.Name, StringComparer.OrdinalIgnoreCase)
@@ -189,7 +179,7 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
               tag.AllowedSubscriptions.Any(x => x.SubscriptionName == subscriptionName && x.IsMandatory)))
           {
             // Log the tag being processed
-            FunctionLogger.MethodInformation(_logger, $"Generating IP and Subnet rules for Service Tag: {tag.Name} for Subscription: {subscriptionName}");
+            _logger.LogGeneratingRulesForServiceTag(tag.Name ?? "Unknown", subscriptionName ?? "Unknown");
 
             var ipAddressRules = GetIpAddressRules(tag);
             results.UnionWith(ipAddressRules);
@@ -197,11 +187,11 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
             results.UnionWith(subnetRules);
           }
         }
-        FunctionLogger.MethodInformation(_logger, $"Generated {results.Count} rules for SubscriptionId: {subscriptionId}");
+        _logger.LogGeneratedRules(results.Count, subscriptionId);
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogOperationException(ex);
       }
       return results;
     }
@@ -232,12 +222,12 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
         }
         else
         {
-          FunctionLogger.MethodInformation(_logger, $"No Address Prefixes found for ServiceTag: {tag.Name}");
+          _logger.LogNoAddressPrefixes(tag.Name ?? "Unknown");
         }
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogOperationException(ex);
       }
       // Return the results HashSet
       return results;
@@ -268,12 +258,12 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
         }
         else
         {
-          FunctionLogger.MethodInformation(_logger, $"No Subnet IDs found for ServiceTag: {tag.Name}");
+          _logger.LogNoSubnetIds(tag.Name ?? "Unknown");
         }
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogOperationException(ex);
       }
       // Return the results HashSet
       return results;
@@ -281,10 +271,9 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
 
     public async Task<bool> IsServiceTagExists(string serviceTagName)
     {
-      FunctionLogger.MethodStart(_logger, nameof(IsServiceTagExists));
       try
       {
-        FunctionLogger.MethodInformation(_logger, $"Checking if service tag : {serviceTagName} exists.");
+        _logger.LogCheckingServiceTagExists(serviceTagName);
         var data = await _settings.Value;
         if (data == null)
         {
@@ -292,12 +281,12 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
         }
         var tagExists = data.ServiceTags.Any(x => x.Name == serviceTagName);
 
-        FunctionLogger.MethodInformation(_logger, $"Service tag existence check result: {tagExists}");
+        _logger.LogServiceTagExistsResult(tagExists);
         return tagExists;
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogOperationException(ex);
       }
       return false;
     }

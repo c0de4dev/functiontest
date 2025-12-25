@@ -5,7 +5,8 @@ using System.Net;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using DynamicAllowListingLib.Logger;
+using DynamicAllowListingLib.Logging;
+using DynamicAllowListingLib.Services;
 
 namespace DynamicAllowListingLib.ServiceTagManagers.AzureManager
 {
@@ -18,11 +19,11 @@ namespace DynamicAllowListingLib.ServiceTagManagers.AzureManager
 
   // create wrapper around WebClient so that we can write test
   public interface IWebClient
-  { 
+  {
   }
   public class NewDayWebClient : HttpClient, IWebClient { }
 
-  
+
   public class AzureServiceTagsJsonHelper : IAzureServiceTagsJsonHelper
   {
     private readonly ILogger<AzureServiceTagsJsonHelper> _logger;
@@ -30,7 +31,7 @@ namespace DynamicAllowListingLib.ServiceTagManagers.AzureManager
     private readonly IRestHelper _restHelper;
     private const string CacheKey = "servicetags";
     private const string ExpireKey = "memCacheExpiry";
- 
+
 
     public AzureServiceTagsJsonHelper(ILogger<AzureServiceTagsJsonHelper> logger, IMemoryCache cache, IRestHelper restHelper)
     {
@@ -41,17 +42,15 @@ namespace DynamicAllowListingLib.ServiceTagManagers.AzureManager
 
     public async Task<string> GetAzureServiceTagsJson(string requestedSubscriptionId)
     {
-      FunctionLogger.MethodStart(_logger,nameof(GetAzureServiceTagsJson));
       try
       {
-        string azureServiceTagsJson = string.Empty;
-        if (!_cache.TryGetValue(CacheKey, out azureServiceTagsJson!))
+        if (!_cache.TryGetValue<string>(CacheKey, out var azureServiceTagsJson) || string.IsNullOrEmpty(azureServiceTagsJson))
         {
           // Key not in cache, so get data.
-          FunctionLogger.MethodInformation(_logger, "Azure Service Tags Not Available in Memory Cache");
+          _logger.LogCacheMiss();
           string serviceTagListUrl = $"https://management.azure.com/subscriptions/{requestedSubscriptionId}/providers/Microsoft.Network/locations/northeurope/serviceTags?api-version=2022-05-01";
 
-          FunctionLogger.MethodInformation(_logger, "Getting Azure Service Tags using REST endpoint");
+          _logger.LogGettingServiceTagsFromRest();
           azureServiceTagsJson = await _restHelper.DoGET(serviceTagListUrl);
 
           // Set cache options.
@@ -65,10 +64,10 @@ namespace DynamicAllowListingLib.ServiceTagManagers.AzureManager
         }
         else
         {
-          FunctionLogger.MethodInformation(_logger, "Got Azure Service Tags from Memory Cache");
+          _logger.LogRetrievedFromCache();
         }
-        FunctionLogger.MethodInformation(_logger, $"AzureServiceTags data expiry Time:{CheckCachedExpiry()}");
-        return azureServiceTagsJson!;
+        _logger.LogCacheExpiryTime(CheckCachedExpiry());
+        return azureServiceTagsJson ?? string.Empty;
       }
       catch (Exception)
       {

@@ -1,4 +1,4 @@
-﻿using DynamicAllowListingLib.Logger;
+﻿using DynamicAllowListingLib.Logging;
 using DynamicAllowListingLib.ServiceTagManagers.Model;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
@@ -14,32 +14,30 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
   {
     private const string AzureSubscriptionsContainerName = "AzureSubscriptions";
     private const string AzureSubscriptionsPartitionKey = "azureSubscriptions";
-     
+
     private readonly CosmosClient _cosmosClient;
     private readonly Container _container;
     private readonly ILogger<AzureSubscriptionsPersistenceManager> _logger;
 
-    public AzureSubscriptionsPersistenceManager(CosmosClient cosmosClient,ILogger<AzureSubscriptionsPersistenceManager> logger)
+    public AzureSubscriptionsPersistenceManager(CosmosClient cosmosClient, ILogger<AzureSubscriptionsPersistenceManager> logger)
     {
       _cosmosClient = cosmosClient;
       _container = _cosmosClient.GetContainer(Constants.DatabaseName, AzureSubscriptionsContainerName);
       _logger = logger;
     }
- 
+
     public async Task UpdateDatabaseStateTo(List<AzureSubscription> itemsToUpdateWith)
     {
-      // Start logging
-      FunctionLogger.MethodStart(_logger, nameof(UpdateDatabaseStateTo));
       try
       {
-        FunctionLogger.MethodInformation(_logger, $"Getting Items from cosmos Container: {_container.Id}");
+        _logger.LogGettingItemsFromContainer(_container.Id);
         // Retrieve existing items
         var existingItems = await GetFromDatabase();
-        FunctionLogger.MethodInformation(_logger, $"Retrieved existing items from database. Count: {existingItems.Count}");
+        _logger.LogRetrievedExistingItems(existingItems.Count);
 
         // Identify items to delete
         var itemsToDelete = existingItems.Where(existingItem => !itemsToUpdateWith.Any(newItem => newItem.Id == existingItem.Id)).ToList();
-        FunctionLogger.MethodInformation(_logger, $"Identified {itemsToDelete.Count} items to delete.");
+        _logger.LogItemsToDelete(itemsToDelete.Count);
 
         var itemsToAddOrUpdate = itemsToUpdateWith;
         // Perform deletions
@@ -48,12 +46,12 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
           try
           {
             await _container.DeleteItemAsync<AzureSubscription>(item.Id, new PartitionKey(AzureSubscriptionsPartitionKey));
-            FunctionLogger.MethodInformation(_logger, $"Deleted item with Id: {item.Id}");
+            _logger.LogItemDeleted(item.Id ?? "Unknown");
           }
           catch (CosmosException cex) when (cex.StatusCode == System.Net.HttpStatusCode.NotFound)
           {
             // Handle scenario where the item to delete doesn't exist in the database
-            FunctionLogger.MethodWarning(_logger, $"Item with Id: {item.Id} not found during deletion. Skipping.");
+            _logger.LogItemNotFoundDuringDeletion(item.Id ?? "Unknown");
           }
         }
         // Perform inserts/updates
@@ -62,24 +60,24 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
           try
           {
             await _container.UpsertItemAsync(item, new PartitionKey(AzureSubscriptionsPartitionKey));
-            FunctionLogger.MethodInformation(_logger, $"Upserted item with Id: {item.Id}");
+            _logger.LogItemUpserted(item.Id ?? "Unknown");
           }
           catch (Exception ex)
           {
             // Log any exception during upsert
-            FunctionLogger.MethodException(_logger, ex, $"Failed to upsert item with Id: {item.Id}");
+            _logger.LogFailedToUpsertItem(ex, item.Id ?? "Unknown");
           }
         }
       }
       catch (CosmosException cex)
-      {     
+      {
         // Handle general Cosmos DB exceptions
-        FunctionLogger.MethodException(_logger, cex, "A Cosmos DB exception occurred during the update process.");
+        _logger.LogCosmosExceptionDuringUpdate(cex);
       }
       catch (Exception ex)
-      {        
+      {
         // Handle unexpected exceptions
-        FunctionLogger.MethodException(_logger, ex, "An unexpected error occurred during the update process.");
+        _logger.LogUnexpectedErrorDuringUpdate(ex);
         throw; // Rethrow to ensure the caller is aware of the failure
       }
     }
@@ -87,12 +85,11 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
 
     public async Task<List<AzureSubscription>> GetFromDatabase()
     {
-      FunctionLogger.MethodStart(_logger, nameof(GetFromDatabase));
       var results = new List<AzureSubscription>();
       //try to enrich cosmos dependency operation with context details.
       try
       {
-        FunctionLogger.MethodInformation(_logger, $"Querying Azure subscriptions from Cosmos container: {_container.Id}");
+        _logger.LogQueryingFromContainer(_container.Id);
 
         // Create LINQ query and process using FeedIterator
         var query = _container.GetItemLinqQueryable<AzureSubscription>()
@@ -104,27 +101,27 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
           results.AddRange(response);
 
           // Log partial results for transparency
-          FunctionLogger.MethodInformation(_logger, $"Fetched {response.Count} subscriptions from current batch.");
+          _logger.LogBatchFetched(response.Count);
         }
         // Log final count of retrieved subscriptions
-        FunctionLogger.MethodInformation(_logger, $"Successfully retrieved {results.Count} Azure subscriptions from the database.");
+        _logger.LogSubscriptionsRetrieved(results.Count);
 
       }
       catch (CosmosException cex) when (cex.StatusCode == System.Net.HttpStatusCode.NotFound)
       {
         // Handle case where the container or data is not found
-        FunctionLogger.MethodWarning(_logger, $"No Azure subscriptions found in Cosmos container: {_container.Id}");
+        _logger.LogNoSubscriptionsFound(_container.Id);
       }
       catch (CosmosException cex)
       {
         // Handle general Cosmos DB exceptions
-        FunctionLogger.MethodException(_logger, cex, "A Cosmos DB exception occurred while retrieving Azure subscriptions.");
+        _logger.LogCosmosExceptionRetrieving(cex);
         throw; // Rethrow exception to propagate error to the caller
       }
       catch (Exception ex)
       {
         // Handle unexpected exceptions
-        FunctionLogger.MethodException(_logger, ex, "An unexpected error occurred while retrieving Azure subscriptions.");
+        _logger.LogUnexpectedErrorRetrieving(ex);
         throw; // Rethrow exception to propagate error to the caller
       }
       return results;
@@ -134,13 +131,12 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
     {
       if (itemsToBeDeleted == null || !itemsToBeDeleted.Any())
       {
-        FunctionLogger.MethodWarning(_logger, $"{nameof(RemoveItemsFromDatabase)} was called with an empty or null list.");
+        _logger.LogEmptyOrNullList(nameof(RemoveItemsFromDatabase));
         return; // No items to delete
       }
-      FunctionLogger.MethodStart(_logger, nameof(RemoveItemsFromDatabase));
       try
       {
-        FunctionLogger.MethodInformation(_logger, $"Preparing to delete {itemsToBeDeleted.Count} AzureSubscription items from the database.");
+        _logger.LogPreparingToDelete(itemsToBeDeleted.Count);
 
         foreach (var item in itemsToBeDeleted)
         {
@@ -148,23 +144,23 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
           {
             // Attempt to delete the item from Cosmos DB
             await _container.DeleteItemAsync<AzureSubscription>(item.Id, new PartitionKey(AzureSubscriptionsPartitionKey));
-            FunctionLogger.MethodInformation(_logger, $"Successfully deleted item with Id: {item.Id}");
+            _logger.LogSuccessfullyDeletedItem(item.Id ?? "Unknown");
           }
           catch (CosmosException cex) when (cex.StatusCode == System.Net.HttpStatusCode.NotFound)
           {
             // Log if the item to delete was not found
-            FunctionLogger.MethodWarning(_logger, $"Item with Id: {item.Id} was not found in the database. Skipping.");
+            _logger.LogItemNotFoundSkipping(item.Id ?? "Unknown");
           }
           catch (Exception ex)
           {
             // Log unexpected errors during item deletion
-            FunctionLogger.MethodException(_logger, ex, $"Failed to delete item with Id: {item.Id}. Skipping to the next item.");
+            _logger.LogFailedToDeleteItem(ex, item.Id ?? "Unknown");
           }
         }
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex, "An unexpected error occurred while deleting items from the database.");
+        _logger.LogUnexpectedErrorDeleting(ex);
         throw;
       }
     }
@@ -173,35 +169,33 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
     {
       if (string.IsNullOrEmpty(requestSubscriptionId))
       {
-        FunctionLogger.MethodWarning(_logger, $"{nameof(GetById)} was called with a null or empty subscription ID.");
+        _logger.LogNullOrEmptySubscriptionId(nameof(GetById));
         return null; // Return null if the input is invalid
       }
       try
       {
-        FunctionLogger.MethodStart(_logger, nameof(GetById));
-
         // Attempt to retrieve the item from Cosmos DB
         var response = await _container.ReadItemAsync<AzureSubscription>(requestSubscriptionId, new PartitionKey(AzureSubscriptionsPartitionKey));
 
-        FunctionLogger.MethodInformation(_logger, $"Successfully retrieved AzureSubscription for ID: {requestSubscriptionId}");
+        _logger.LogSubscriptionRetrievedById(requestSubscriptionId);
         return response.Resource;
       }
       catch (CosmosException cex) when (cex.StatusCode == System.Net.HttpStatusCode.NotFound)
       {
         // Log a warning instead of an exception for not found cases
-        FunctionLogger.MethodWarning(_logger, $"AzureSubscription with ID '{requestSubscriptionId}' was not found in the database.");
+        _logger.LogSubscriptionNotFoundById(requestSubscriptionId);
         return null; // Return null to indicate not found
       }
       catch (CosmosException cex)
       {
         // Log unexpected Cosmos DB errors
-        FunctionLogger.MethodException(_logger, cex, "An error occurred while accessing the Cosmos DB.");
+        _logger.LogCosmosAccessError(cex);
         throw; // Re-throw the exception for higher-level handling
       }
       catch (Exception ex)
       {
         // Log any other unexpected errors
-        FunctionLogger.MethodException(_logger, ex, "An unexpected error occurred while retrieving the AzureSubscription.");
+        _logger.LogUnexpectedErrorRetrievingSubscription(ex);
         throw; // Re-throw the exception for higher-level handling
       }
     }

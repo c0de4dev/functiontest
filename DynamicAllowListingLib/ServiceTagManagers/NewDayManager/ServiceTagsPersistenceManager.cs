@@ -1,4 +1,4 @@
-﻿using DynamicAllowListingLib.Logger;
+﻿using DynamicAllowListingLib.Logging;
 using DynamicAllowListingLib.ServiceTagManagers.Model;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
@@ -19,7 +19,7 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
     private readonly Container _container;
     private readonly ILogger<ServiceTagsPersistenceManager> _logger;
 
-    public ServiceTagsPersistenceManager(CosmosClient cosmosClient,ILogger<ServiceTagsPersistenceManager> logger)
+    public ServiceTagsPersistenceManager(CosmosClient cosmosClient, ILogger<ServiceTagsPersistenceManager> logger)
     {
       _cosmosClient = cosmosClient;
       _container = _cosmosClient.GetContainer(Constants.DatabaseName, ServiceTagsContainerName);
@@ -28,17 +28,16 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
 
     public async Task UpdateDatabaseStateTo(List<ServiceTag> itemsToUpdateWith)
     {
-      FunctionLogger.MethodStart(_logger, nameof(UpdateDatabaseStateTo));
       try
       {
         // Retrieve existing items from the database
-        FunctionLogger.MethodInformation(_logger, $"Fetching existing items from Cosmos Container: {_container.Id}");
+        _logger.LogFetchingExistingItems(_container.Id);
         var existingItems = await GetFromDatabase();
-        FunctionLogger.MethodInformation(_logger, $"Retrieved {existingItems.Count} existing items from the database.");
+        _logger.LogRetrievedExistingItemsCount(existingItems.Count);
 
         // Identify items to delete
         var itemsToDelete = existingItems.Where(existingItem => !itemsToUpdateWith.Any(newItem => newItem.Id == existingItem.Id)).ToList();
-        FunctionLogger.MethodInformation(_logger, $"Identified {itemsToDelete.Count} items to delete.");
+        _logger.LogItemsToDelete(itemsToDelete.Count);
 
         // Identify items to add or update
         var itemsToAddOrUpdate = itemsToUpdateWith;
@@ -47,30 +46,29 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
         {
           await _container.DeleteItemAsync<ServiceTag>(item.Id, new PartitionKey(ServiceTagsPartitionKey));
 
-          FunctionLogger.MethodInformation(_logger, $"Deleted item with Id: {item.Id}");
+          _logger.LogItemDeleted(item.Id ?? "Unknown");
         }
         // Perform inserts/updates
         foreach (var item in itemsToAddOrUpdate)
         {
           await _container.UpsertItemAsync(item, new PartitionKey(ServiceTagsPartitionKey));
-          FunctionLogger.MethodInformation(_logger, $"Upserted item with Id: {item.Id}");
+          _logger.LogItemUpserted(item.Id ?? "Unknown");
         }
-        FunctionLogger.MethodInformation(_logger, "Database state successfully updated.");
+        _logger.LogDatabaseStateUpdated();
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogOperationException(ex);
         throw;
       }
     }
 
     public async Task<List<ServiceTag>> GetFromDatabase()
     {
-      FunctionLogger.MethodStart(_logger, nameof(GetFromDatabase));
       var results = new List<ServiceTag>();
       try
       {
-        FunctionLogger.MethodInformation(_logger, $"Fetching ServiceTags from Cosmos container: {_container.Id}");
+        _logger.LogFetchingServiceTags(_container.Id);
         var query = _container.GetItemLinqQueryable<ServiceTag>()
                               .ToFeedIterator();
         while (query.HasMoreResults)
@@ -82,22 +80,20 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
             results.AddRange(response);
 
             // Log batch processing information
-            FunctionLogger.MethodInformation(_logger,
-                $"Fetched a batch of {response.Count} ServiceTags. Total retrieved so far: {results.Count}");
+            _logger.LogServiceTagBatchFetched(response.Count, results.Count);
           }
           catch (CosmosException cosmosEx)
           {
             // Handle specific CosmosDB exceptions
-            FunctionLogger.MethodWarning(_logger,
-                $"CosmosDB query failed while retrieving a batch. StatusCode: {cosmosEx.StatusCode}, Message: {cosmosEx.Message}");
+            _logger.LogCosmosQueryFailed(cosmosEx.StatusCode.ToString(), cosmosEx.Message);
             throw;
           }
         }
-        FunctionLogger.MethodInformation(_logger, $"Successfully retrieved a total of {results.Count} ServiceTags from the database.");
+        _logger.LogServiceTagsRetrieved(results.Count);
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogOperationException(ex);
         throw;
       }
       return results;
@@ -105,15 +101,14 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
 
     public async Task RemoveItemsFromDatabase(List<ServiceTag> itemsToBeDeleted)
     {
-      FunctionLogger.MethodStart(_logger, nameof(RemoveItemsFromDatabase));
       if (itemsToBeDeleted == null || !itemsToBeDeleted.Any())
       {
-        FunctionLogger.MethodInformation(_logger, "No items provided for deletion.");
+        _logger.LogNoItemsForDeletion();
         return;
       }
       try
       {
-        FunctionLogger.MethodInformation(_logger, $"Preparing to delete {itemsToBeDeleted.Count} items from the database.");
+        _logger.LogPreparingToDeleteItems(itemsToBeDeleted.Count);
         foreach (var item in itemsToBeDeleted)
         {
           try
@@ -122,53 +117,50 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
             await _container.DeleteItemAsync<ServiceTag>(item.Id, new PartitionKey(ServiceTagsPartitionKey));
 
             // Log the successful deletion of each item
-            FunctionLogger.MethodInformation(_logger, $"Deleted ServiceTag with ID: {item.Id}");
+            _logger.LogServiceTagDeleted(item.Id ?? "Unknown");
           }
           catch (CosmosException cosmosEx)
           {
             // Handle specific CosmosDB exceptions for deletion
-            FunctionLogger.MethodWarning(_logger,
-                $"CosmosDB deletion failed for ServiceTag with ID: {item.Id}. StatusCode: {cosmosEx.StatusCode}, Message: {cosmosEx.Message}");
+            _logger.LogServiceTagDeletionFailed(item.Id ?? "Unknown", cosmosEx.StatusCode.ToString(), cosmosEx.Message);
             // Optionally, rethrow or continue depending on requirements
             throw;
           }
         }
-        FunctionLogger.MethodInformation(_logger, $"Successfully deleted {itemsToBeDeleted.Count} items from the database.");
+        _logger.LogSuccessfullyDeletedItems(itemsToBeDeleted.Count);
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogOperationException(ex);
       }
     }
 
     public async Task<ServiceTag?> GetById(string id)
     {
-      FunctionLogger.MethodStart(_logger, nameof(GetById));
       // Return an empty ServiceTag in case of errors or not found (useful as default value)
       ServiceTag response1 = new ServiceTag();
       if (string.IsNullOrEmpty(id))
       {
-        string errorMessage = "Provided ID is null or empty.";
-        FunctionLogger.MethodWarning(_logger, errorMessage);
+        _logger.LogProvidedIdNullOrEmpty();
         return response1;
       }
       try
       {
         // Attempt to read the item from Cosmos DB container
         var response = await _container.ReadItemAsync<ServiceTag>(id, new PartitionKey(ServiceTagsPartitionKey));
-        FunctionLogger.MethodInformation(_logger, $"Successfully retrieved ServiceTag with ID: {id}");
+        _logger.LogServiceTagRetrievedById(id);
         return response.Resource;
       }
       catch (CosmosException cex) when (cex.StatusCode == System.Net.HttpStatusCode.NotFound)
       {
         // Log the specific case where the item is not found
-        FunctionLogger.MethodWarning(_logger, $"ServiceTag with ID: {id} not found. CosmosDB Status Code: {cex.StatusCode}");
-        FunctionLogger.MethodException(_logger, cex);
+        _logger.LogServiceTagNotFoundById(id, cex.StatusCode.ToString());
+        _logger.LogOperationException(cex);
         return response1;
       }
       catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex);
+        _logger.LogOperationException(ex);
         return response1;
       }
     }

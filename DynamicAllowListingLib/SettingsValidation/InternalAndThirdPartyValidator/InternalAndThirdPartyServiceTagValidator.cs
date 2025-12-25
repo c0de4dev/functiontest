@@ -81,7 +81,7 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
                 var warningMessage = $"Overlapping 'ServiceTags.AddressPrefixes' detected. " +
                                              $"ServiceTags.Name: {tag.Name}, AddressPrefix: {addr}";
                 warnings.Add(warningMessage);
-                FunctionLogger.MethodWarning(_logger,warningMessage);
+                FunctionLogger.MethodWarning(_logger, warningMessage);
               }
               else
               {
@@ -117,7 +117,7 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
       List<string> errors = new List<string>();
       try
       {
-        FunctionLogger.MethodStart(_logger,nameof(ValidateAllowedSubscriptionTags));
+        FunctionLogger.MethodStart(_logger, nameof(ValidateAllowedSubscriptionTags));
 
         if (settings?.AzureSubscriptions == null || !settings.AzureSubscriptions.Any())
         {
@@ -129,7 +129,7 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
 
         var subscriptionList = settings.AzureSubscriptions.Select(x => x.Name).ToList();
         // Log the subscriptions available for validation
-        FunctionLogger.MethodInformation(_logger,$"Available Azure subscriptions: {string.Join(", ", subscriptionList)}");
+        FunctionLogger.MethodInformation(_logger, $"Available Azure subscriptions: {string.Join(", ", subscriptionList)}");
 
         if (settings.ServiceTags == null || !settings.ServiceTags.Any())
         {
@@ -180,7 +180,7 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
       List<string> errors = new List<string>();
       try
       {
-        FunctionLogger.MethodStart(_logger,nameof(ValidateServiceTagIPAddresses));
+        FunctionLogger.MethodStart(_logger, nameof(ValidateServiceTagIPAddresses));
         if (settings?.ServiceTags == null || !settings.ServiceTags.Any())
         {
           var errorMessage = "No ServiceTags provided in the settings.";
@@ -341,7 +341,7 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
       }
       catch (Exception)
       {
-          throw; // Re-throw the exception after logging for further handling
+        throw; // Re-throw the exception after logging for further handling
       }
     }
 
