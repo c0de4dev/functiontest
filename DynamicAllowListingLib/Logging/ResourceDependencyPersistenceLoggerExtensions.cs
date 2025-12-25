@@ -10,37 +10,6 @@ namespace DynamicAllowListingLib.Logging
   /// </summary>
   public static partial class ResourceDependencyPersistenceLoggerExtensions
   {
-    // ============================================================
-    // Method Lifecycle (EventIds 7000-7019)
-    // ============================================================
-
-    [LoggerMessage(
-        EventId = 7000,
-        Level = LogLevel.Information,
-        Message = "Starting method: {MethodName}")]
-    public static partial void LogMethodStart(
-        this ILogger logger,
-        string methodName);
-
-    [LoggerMessage(
-        EventId = 7001,
-        Level = LogLevel.Information,
-        Message = "Completed method: {MethodName} | Duration: {DurationMs}ms | Success: {Success}")]
-    public static partial void LogMethodComplete(
-        this ILogger logger,
-        string methodName,
-        long durationMs,
-        bool success);
-
-    [LoggerMessage(
-        EventId = 7002,
-        Level = LogLevel.Error,
-        Message = "Exception in method: {MethodName} | Duration: {DurationMs}ms")]
-    public static partial void LogMethodException(
-        this ILogger logger,
-        Exception exception,
-        string methodName,
-        long durationMs);
 
     // ============================================================
     // CreateOrReplaceItemInDb (EventIds 7020-7039)
