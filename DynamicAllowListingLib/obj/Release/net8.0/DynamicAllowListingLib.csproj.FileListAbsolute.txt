@@ -1,0 +1,15 @@
+C:\Work\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\bin\Release\net8.0\Microsoft.Azure.Cosmos.ServiceInterop.dll
+C:\Work\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\bin\Release\net8.0\Cosmos.CRTCompat.dll
+C:\Work\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\bin\Release\net8.0\DynamicAllowListingLib.deps.json
+C:\Work\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\bin\Release\net8.0\DynamicAllowListingLib.dll
+C:\Work\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\bin\Release\net8.0\DynamicAllowListingLib.pdb
+C:\Work\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Release\net8.0\DynamicAllowListingLib.csproj.AssemblyReference.cache
+C:\Work\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Release\net8.0\DynamicAllowListingLib.GeneratedMSBuildEditorConfig.editorconfig
+C:\Work\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Release\net8.0\DynamicAllowListingLib.AssemblyInfoInputs.cache
+C:\Work\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Release\net8.0\DynamicAllowListingLib.AssemblyInfo.cs
+C:\Work\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Release\net8.0\DynamicAllowListingLib.csproj.CoreCompileInputs.cache
+C:\Work\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Release\net8.0\DynamicAllowListingLib.sourcelink.json
+C:\Work\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Release\net8.0\DynamicAllowListingLib.dll
+C:\Work\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Release\net8.0\refint\DynamicAllowListingLib.dll
+C:\Work\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Release\net8.0\DynamicAllowListingLib.pdb
+C:\Work\Repos\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Release\net8.0\ref\DynamicAllowListingLib.dll
