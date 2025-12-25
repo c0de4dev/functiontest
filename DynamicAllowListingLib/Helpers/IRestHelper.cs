@@ -2,40 +2,53 @@
 
 namespace DynamicAllowListingLib
 {
+  /// <summary>
+  /// Interface for REST API helper operations.
+  /// </summary>
   public interface IRestHelper
   {
     /// <summary>
-    /// Send a GET request to the specified url.
+    /// Sends a GET request to the specified URL.
     /// </summary>
     /// <param name="url">URL to send request to.</param>
     /// <returns>The response JSON as string.</returns>
-    Task<string> DoGET(string url);
+    Task<string?> DoGET(string url);
 
     /// <summary>
-    /// Send a PUT request to the specified url.
+    /// Sends a PUT request to the specified URL.
     /// </summary>
     /// <param name="url">URL to send request to.</param>
     /// <param name="requestBodyJsonAsString">The request body JSON as string.</param>
     /// <returns>The response JSON as string.</returns>
-    Task<string> DoPutAsJson(string url, string requestBodyJsonAsString);
+    Task<string?> DoPutAsJson(string url, string requestBodyJsonAsString);
 
     /// <summary>
-    /// Send a POST request to the specified url.
+    /// Sends a POST request to the specified URL.
     /// </summary>
     /// <param name="url">URL to send request to.</param>
     /// <param name="requestBodyJsonAsString">The request body JSON as string.</param>
     /// <returns>The response JSON as string.</returns>
-    Task<string> DoPostAsJson(string url, string requestBodyJsonAsString);
+    Task<string?> DoPostAsJson(string url, string requestBodyJsonAsString);
 
     /// <summary>
-    /// Send a PATCH request to the specified url.
+    /// Sends a PATCH request to the specified URL.
     /// </summary>
     /// <param name="url">URL to send request to.</param>
     /// <param name="requestBodyJsonAsString">The request body JSON as string.</param>
     /// <returns>The response JSON as string.</returns>
-    Task<string> DoPatchAsJson(string url, string requestBodyJsonAsString);
+    Task<string?> DoPatchAsJson(string url, string requestBodyJsonAsString);
 
+    /// <summary>
+    /// Retrieves an access token for the specified URL.
+    /// </summary>
+    /// <param name="url">The URL to get the access token for.</param>
+    /// <returns>The access token.</returns>
     Task<string?> GetAccessToken(string url);
-    Task DoDelete(string firewalUrl);
+
+    /// <summary>
+    /// Sends a DELETE request to the specified URL.
+    /// </summary>
+    /// <param name="url">URL to send the DELETE request to.</param>
+    Task DoDelete(string url);
   }
 }
