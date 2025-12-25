@@ -1,10 +1,12 @@
-﻿using DynamicAllowListingLib.Models;
+﻿using DynamicAllowListingLib.Logging;
+using DynamicAllowListingLib.Models;
 using DynamicAllowListingLib.ServiceTagManagers.Model;
 using DynamicAllowListingLib.ServiceTagManagers.NewDayManager;
 using Microsoft.Azure.Management.ResourceGraph.Models;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,11 +26,12 @@ namespace DynamicAllowListingLib.Services
     private readonly ISettingValidator<ResourceDependencyInformation> _validator;
     private readonly ILogger _logger;
 
-    public BaseIpRestrictionService(IResourceDependencyInformationPersistenceService dependencyInfoManager,
-                                    IPersistenceManager<AzureSubscription> azureSubscriptionPersistenceManager,
-                                    IResourceGraphExplorerService resourceService,
-                                    ISettingValidator<ResourceDependencyInformation> validator,
-                                    ILogger logger)
+    public BaseIpRestrictionService(
+        IResourceDependencyInformationPersistenceService dependencyInfoManager,
+        IPersistenceManager<AzureSubscription> azureSubscriptionPersistenceManager,
+        IResourceGraphExplorerService resourceService,
+        ISettingValidator<ResourceDependencyInformation> validator,
+        ILogger logger)
     {
       _azureSubscriptionPersistenceManager = azureSubscriptionPersistenceManager;
       _dependencyInfoManager = dependencyInfoManager;
@@ -39,109 +42,262 @@ namespace DynamicAllowListingLib.Services
 
     public async Task<HashSet<ResourceDependencyInformation>> FindRelatedDependencyConfigs(List<ServiceTag> relatedServiceTags)
     {
-      HashSet<ResourceDependencyInformation> dependencyConfigList;
-      if (await IsMandatoryForCurrentSubscription(relatedServiceTags))
-      {
-        _logger.LogInformation($"Updated Service Tag is Mandatory for current subscription!");
-        //get all dependency configs because service tag is mandatory
-        dependencyConfigList = new HashSet<ResourceDependencyInformation>(await _dependencyInfoManager.GetAll());
-      }
-      else
-      {
-        //Find dependency config by referenced service tag
-        dependencyConfigList = await FindDependencyConfigs(relatedServiceTags);
-      }
+      var stopwatch = Stopwatch.StartNew();
+      _logger.LogMethodStart(nameof(FindRelatedDependencyConfigs));
+      _logger.LogFindingRelatedDependencyConfigs(relatedServiceTags?.Count ?? 0);
 
-      if (dependencyConfigList.Any())
-        _logger.LogInformation($"{dependencyConfigList.Count} Network Restriction Config found!");
+      HashSet<ResourceDependencyInformation> dependencyConfigList;
+
+      try
+      {
+        using (_logger.BeginIpRestrictionScope(nameof(FindRelatedDependencyConfigs), relatedServiceTags?.Count ?? 0))
+        {
+          if (await IsMandatoryForCurrentSubscription(relatedServiceTags!))
+          {
+            _logger.LogMandatoryServiceTag();
+            // Get all dependency configs because service tag is mandatory
+            dependencyConfigList = new HashSet<ResourceDependencyInformation>(await _dependencyInfoManager.GetAll());
+          }
+          else
+          {
+            // Find dependency config by referenced service tag
+            dependencyConfigList = await FindDependencyConfigs(relatedServiceTags!);
+          }
+
+          stopwatch.Stop();
+
+          if (dependencyConfigList.Any())
+          {
+            _logger.LogNetworkRestrictionConfigsFound(dependencyConfigList.Count);
+          }
+          else
+          {
+            _logger.LogNoNetworkRestrictionConfigsFound();
+          }
+
+          _logger.LogMethodComplete(nameof(FindRelatedDependencyConfigs), stopwatch.ElapsedMilliseconds, true);
+        }
+      }
+      catch (Exception ex)
+      {
+        stopwatch.Stop();
+        _logger.LogMethodException(ex, nameof(FindRelatedDependencyConfigs), stopwatch.ElapsedMilliseconds);
+        throw;
+      }
 
       return dependencyConfigList;
     }
 
     public async Task<HashSet<ResourceDependencyInformation>> RemoveInvalidResourceConfigs(HashSet<ResourceDependencyInformation> dependencyConfigList)
     {
-      // duplicated resource id check
-      var duplicatedIds = dependencyConfigList.GroupBy(x => x.ResourceId).Where(g => g.Count() > 1).Select(y => y.Key).ToList();
-      var uniqueIdConfigs = dependencyConfigList.Where(x => !duplicatedIds.Contains(x.ResourceId)).ToList();
-      // do not remove duplicated records as it may cause removing the existing resourceId from all the configs referencing that id
+      var stopwatch = Stopwatch.StartNew();
+      var initialCount = dependencyConfigList?.Count ?? 0;
+      _logger.LogMethodStart(nameof(RemoveInvalidResourceConfigs));
+      _logger.LogStartingConfigValidation(initialCount);
 
-      // wrong formatted resource id check
-      var wrongFormattedIds = uniqueIdConfigs.Where(x => !_validator.ValidateFormat(x).Success).Select(x => x.ResourceId).ToList();
-      var correctFormattedIdConfigs = uniqueIdConfigs.Where(x => !wrongFormattedIds.Contains(x.ResourceId)).ToList();
+      try
+      {
+        using (_logger.BeginConfigValidationScope(initialCount))
+        {
+          // Duplicated resource id check
+          var duplicatedIds = dependencyConfigList!
+              .GroupBy(x => x.ResourceId)
+              .Where(g => g.Count() > 1)
+              .Select(y => y.Key)
+              .ToList();
 
-      // main resource existence check
-      var nonexistentIds = await GetNonexistentResourceIds(correctFormattedIdConfigs);
-      var validConfigs = correctFormattedIdConfigs.Where(x => !nonexistentIds.Contains(x.ResourceId!)).ToList();
+          var uniqueIdConfigs = (dependencyConfigList ?? Enumerable.Empty<ResourceDependencyInformation>())
+              .Where(x => !duplicatedIds.Contains(x.ResourceId))
+              .ToList();
 
-      //remove nonexisting configs
-      await RemoveInvalidConfigsFromDb(nonexistentIds);
+          if (duplicatedIds.Any())
+          {
+            _logger.LogDuplicatedResourceIds(
+                duplicatedIds.Count,
+                string.Join(", ", duplicatedIds));
+          }
 
-      LogInvalidConfigs("duplicated", duplicatedIds!);
-      LogInvalidConfigs("invalid", wrongFormattedIds!);
-      LogInvalidConfigs("nonexistent", nonexistentIds!);
+          // Wrong formatted resource id check
+          var wrongFormattedIds = uniqueIdConfigs
+              .Where(x => !_validator.ValidateFormat(x).Success)
+              .Select(x => x.ResourceId)
+              .ToList();
 
-      return new HashSet<ResourceDependencyInformation>(validConfigs);
+          var correctFormattedIdConfigs = uniqueIdConfigs
+              .Where(x => !wrongFormattedIds.Contains(x.ResourceId))
+              .ToList();
+
+          if (wrongFormattedIds.Any())
+          {
+            _logger.LogInvalidFormatResourceIds(
+                wrongFormattedIds.Count,
+                string.Join(", ", wrongFormattedIds));
+          }
+
+          // Main resource existence check
+          var nonexistentIds = await GetNonexistentResourceIds(correctFormattedIdConfigs);
+          var validConfigs = correctFormattedIdConfigs
+              .Where(x => !nonexistentIds.Contains(x.ResourceId!))
+              .ToList();
+
+          if (nonexistentIds.Any())
+          {
+            _logger.LogNonexistentResourceIds(
+                nonexistentIds.Count,
+                string.Join(", ", nonexistentIds));
+          }
+
+          // Remove nonexistent configs from database
+          await RemoveInvalidConfigsFromDb(nonexistentIds);
+
+          // Log summary of invalid configs
+          LogInvalidConfigsSummary("duplicated", duplicatedIds!);
+          LogInvalidConfigsSummary("invalid", wrongFormattedIds!);
+          LogInvalidConfigsSummary("nonexistent", nonexistentIds!);
+
+          stopwatch.Stop();
+          var removedCount = initialCount - validConfigs.Count;
+          _logger.LogConfigValidationComplete(validConfigs.Count, removedCount, stopwatch.ElapsedMilliseconds);
+
+          return new HashSet<ResourceDependencyInformation>(validConfigs);
+        }
+      }
+      catch (Exception ex)
+      {
+        stopwatch.Stop();
+        _logger.LogMethodException(ex, nameof(RemoveInvalidResourceConfigs), stopwatch.ElapsedMilliseconds);
+        throw;
+      }
     }
 
     private async Task<List<string>> GetNonexistentResourceIds(List<ResourceDependencyInformation> configs)
     {
-      if (configs != null && configs.Count > 0)
+      if (configs == null || configs.Count == 0)
       {
-        var azureSubscriptionId = configs.First(x => !string.IsNullOrEmpty(x.RequestSubscriptionId)).RequestSubscriptionId;
-        var resourceIdsToBeChecked = configs.Select(x => x.ResourceId).ToList();
-
-        var existingResourceIds = await _resourceService.GetExistingResourceIdsByType(azureSubscriptionId!, new List<string>
-        {
-          AzureResourceType.CosmosDb,
-          AzureResourceType.WebSite,
-          AzureResourceType.Storage,
-          AzureResourceType.PublicIpAddress,
-          AzureResourceType.WebSiteSlot
-        });
-        var nonexistentIds = resourceIdsToBeChecked.Except(existingResourceIds).ToList();
-        return nonexistentIds!;
+        _logger.LogNoConfigsForExistenceCheck();
+        return new List<string>();
       }
-      return new List<string>();
+
+      var stopwatch = Stopwatch.StartNew();
+      var azureSubscriptionId = configs
+          .First(x => !string.IsNullOrEmpty(x.RequestSubscriptionId))
+          .RequestSubscriptionId;
+
+      var resourceIdsToBeChecked = configs.Select(x => x.ResourceId).ToList();
+
+      _logger.LogCheckingResourceExistence(azureSubscriptionId!, resourceIdsToBeChecked.Count);
+
+      var existingResourceIds = await _resourceService.GetExistingResourceIdsByType(
+          azureSubscriptionId!,
+          new List<string>
+          {
+            AzureResourceType.CosmosDb,
+            AzureResourceType.WebSite,
+            AzureResourceType.Storage,
+            AzureResourceType.PublicIpAddress,
+            AzureResourceType.WebSiteSlot
+          });
+
+      var nonexistentIds = resourceIdsToBeChecked.Except(existingResourceIds).ToList();
+
+      stopwatch.Stop();
+      _logger.LogResourceExistenceCheckComplete(
+          existingResourceIds.Count(),
+          nonexistentIds.Count,
+          stopwatch.ElapsedMilliseconds);
+
+      return nonexistentIds!;
     }
 
-    private void LogInvalidConfigs(string type, List<string> resourceIds)
+    private void LogInvalidConfigsSummary(string type, List<string> resourceIds)
     {
       if (resourceIds != null && resourceIds.Count > 0)
-        _logger.LogWarning($"{resourceIds.Count} {type} ResourceIds found!  ResourceIds: {string.Join(", \n", resourceIds)}");
+      {
+        _logger.LogInvalidConfigs(
+            type,
+            resourceIds.Count,
+            string.Join(", ", resourceIds));
+      }
     }
 
     private async Task RemoveInvalidConfigsFromDb(params object[] args)
     {
+      var stopwatch = Stopwatch.StartNew();
       var invalidRecords = new List<string>();
+
       foreach (var invalidResourceIds in args)
       {
         invalidRecords.AddRange((List<string>)invalidResourceIds);
       }
 
-      foreach (var invalidResourceId in invalidRecords.Distinct())
+      var distinctRecords = invalidRecords.Distinct().ToList();
+
+      if (!distinctRecords.Any())
       {
-        await _dependencyInfoManager.RemoveConfig(invalidResourceId);
+        return;
       }
-      _logger.LogWarning($"Removed Resource Ids: {string.Join(", \n", invalidRecords)}");
+
+      _logger.LogRemovingInvalidConfigsFromDb(distinctRecords.Count);
+
+      foreach (var invalidResourceId in distinctRecords)
+      {
+        try
+        {
+          await _dependencyInfoManager.RemoveConfig(invalidResourceId);
+        }
+        catch (Exception ex)
+        {
+          _logger.LogRemoveConfigFromDbFailed(ex, invalidResourceId);
+        }
+      }
+
+      stopwatch.Stop();
+      _logger.LogRemovedResourceIdsFromDb(
+          string.Join(", ", distinctRecords),
+          stopwatch.ElapsedMilliseconds);
     }
 
     public async Task UpdateConfigsInDb(ResourceDependencyInformation config)
     {
-      await _dependencyInfoManager.CreateOrReplaceItemInDb(config);
-      _logger.LogWarning($"Config Updated in DB, ResourceId: {config.ResourceId}");
+      try
+      {
+        await _dependencyInfoManager.CreateOrReplaceItemInDb(config);
+        _logger.LogConfigUpdatedInDb(
+            config.ResourceId ?? "Unknown",
+            config.ResourceName ?? "Unknown");
+      }
+      catch (Exception ex)
+      {
+        _logger.LogUpdateConfigInDbFailed(ex, config.ResourceId ?? "Unknown");
+        throw;
+      }
     }
-
 
     private async Task<HashSet<ResourceDependencyInformation>> FindDependencyConfigs(List<ServiceTag> relatedServiceTags)
     {
       var dependencyConfigList = new HashSet<ResourceDependencyInformation>();
+
       foreach (var serviceTag in relatedServiceTags)
       {
-        foreach (var dependencyInfo in await _dependencyInfoManager.FindByInternalAndThirdPartyTagName(serviceTag))
+        var stopwatch = Stopwatch.StartNew();
+        _logger.LogFindingConfigsForServiceTag(
+            serviceTag.Id ?? "Unknown",
+            serviceTag.Name ?? "Unknown");
+
+        var configsForTag = await _dependencyInfoManager.FindByInternalAndThirdPartyTagName(serviceTag);
+
+        foreach (var dependencyInfo in configsForTag)
         {
           dependencyConfigList.Add(dependencyInfo);
         }
+
+        stopwatch.Stop();
+        _logger.LogDependencyConfigsLookupComplete(
+            serviceTag.Name ?? "Unknown",
+            configsForTag.Count(),
+            stopwatch.ElapsedMilliseconds);
       }
+
       return dependencyConfigList;
     }
 
@@ -149,10 +305,23 @@ namespace DynamicAllowListingLib.Services
     {
       var firstRecordFromDb = await _dependencyInfoManager.GetFirstOrDefault();
       var subscriptionName = await GetSubscriptionNameById(firstRecordFromDb.RequestSubscriptionId);
-      if (string.IsNullOrEmpty(subscriptionName))
-        throw new ArgumentNullException($"There is no subscription found for the id:{firstRecordFromDb.RequestSubscriptionId}");
 
-      var isAnyMandatoryTagForSubscription = relatedServiceTags.Any(x => x.AllowedSubscriptions.Where(s => s.SubscriptionName == subscriptionName && s.IsMandatory == true).Any());
+      if (string.IsNullOrEmpty(subscriptionName))
+      {
+        _logger.LogSubscriptionNotFound(firstRecordFromDb.RequestSubscriptionId ?? "Unknown");
+        throw new ArgumentNullException(
+            $"There is no subscription found for the id:{firstRecordFromDb.RequestSubscriptionId}");
+      }
+
+      _logger.LogCheckingMandatoryTag(subscriptionName);
+
+      var isAnyMandatoryTagForSubscription = relatedServiceTags.Any(x =>
+          x.AllowedSubscriptions
+              .Where(s => s.SubscriptionName == subscriptionName && s.IsMandatory == true)
+              .Any());
+
+      _logger.LogMandatoryTagCheckResult(subscriptionName, isAnyMandatoryTagForSubscription);
+
       return isAnyMandatoryTagForSubscription;
     }
 
@@ -160,9 +329,24 @@ namespace DynamicAllowListingLib.Services
     {
       if (requestSubscriptionId != null)
       {
-        var azureSubscription = await _azureSubscriptionPersistenceManager.GetById(requestSubscriptionId);
-        return azureSubscription!.Name ?? string.Empty;
+        using (_logger.BeginSubscriptionScope(requestSubscriptionId))
+        {
+          var azureSubscription = await _azureSubscriptionPersistenceManager.GetById(requestSubscriptionId);
+          var subscriptionName = azureSubscription?.Name ?? string.Empty;
+
+          if (!string.IsNullOrEmpty(subscriptionName))
+          {
+            _logger.LogSubscriptionNameRetrieved(requestSubscriptionId, subscriptionName);
+          }
+          else
+          {
+            _logger.LogSubscriptionNotFound(requestSubscriptionId);
+          }
+
+          return subscriptionName;
+        }
       }
+
       return string.Empty;
     }
   }
