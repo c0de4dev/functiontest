@@ -1,4 +1,4 @@
-﻿using DynamicAllowListingLib.Logger;
+﻿using DynamicAllowListingLib.Logging;
 using DynamicAllowListingLib.Models;
 using DynamicAllowListingLib.Models.ResourceGraphResponses;
 using DynamicAllowListingLib.ServiceTagManagers.Model;
@@ -7,9 +7,9 @@ using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
-using System.Reflection.Metadata;
 using System.Threading.Tasks;
 
 namespace DynamicAllowListingLib
@@ -18,8 +18,11 @@ namespace DynamicAllowListingLib
   {
     private readonly Container _container;
     private readonly ILogger<ResourceDependencyInformationPersistenceService> _logger;
-    public ResourceDependencyInformationPersistenceService(CosmosClient cosmosClient, CosmosDbSettings cosmosDbSettings,
-      ILogger<ResourceDependencyInformationPersistenceService> logger)
+
+    public ResourceDependencyInformationPersistenceService(
+        CosmosClient cosmosClient,
+        CosmosDbSettings cosmosDbSettings,
+        ILogger<ResourceDependencyInformationPersistenceService> logger)
     {
       var database = cosmosClient.GetDatabase(cosmosDbSettings.DatabaseName);
       _container = database.GetContainer("NetworkRestrictionsConfigs");
@@ -28,288 +31,260 @@ namespace DynamicAllowListingLib
 
     public async Task<ResultObject> CreateOrReplaceItemInDb(ResourceDependencyInformation resourceDependencyInformation)
     {
-      FunctionLogger.MethodStart(_logger, nameof(CreateOrReplaceItemInDb));
-
       ResultObject resultObject = new ResultObject();
+
       // Check for null or invalid resourceDependencyInformation
       if (resourceDependencyInformation == null)
       {
-        FunctionLogger.MethodInformation(_logger, "ResourceDependencyInformation is null, skipping DB operation.");
+        _logger.LogNullResourceDependencyInfo();
         return resultObject;
       }
+
       // Check for empty ResourceId
       if (string.IsNullOrEmpty(resourceDependencyInformation.ResourceId))
       {
-        FunctionLogger.MethodInformation(_logger, "Empty Resource ID, Skipping DB Operation");
+        _logger.LogEmptyResourceId();
         return resultObject;
       }
+
+      string documentId = resourceDependencyInformation.DocumentId ?? string.Empty;
+
       try
       {
-        string documentId = resourceDependencyInformation.DocumentId ?? string.Empty;
-        FunctionLogger.MethodInformation(_logger, $"Attempting to replace item in DB. DocumentId: {documentId}");
+        using (_logger.BeginCosmosDbScope("CreateOrReplace", documentId))
+        {
+          _logger.LogAttemptingReplaceItem(documentId);
 
-        // Try replacing the item in the database
-        await _container.ReplaceItemAsync(resourceDependencyInformation, documentId, new PartitionKey(documentId));
-        FunctionLogger.MethodInformation(_logger, $"Item replaced successfully. DocumentId: {documentId}");
+          // Try replacing the item in the database
+          await _container.ReplaceItemAsync(resourceDependencyInformation, documentId, new PartitionKey(documentId));
+          _logger.LogItemReplaced(documentId);
+        }
       }
       catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
       {
         // If the item is not found, we will create a new one
-        FunctionLogger.MethodInformation(_logger, $"Item not found in DB, trying to create new item. DocumentId: {resourceDependencyInformation.DocumentId}");
+        _logger.LogItemNotFoundCreating(resourceDependencyInformation.DocumentId ?? "Unknown");
+
         try
         {
           await _container.CreateItemAsync(resourceDependencyInformation, new PartitionKey(resourceDependencyInformation.DocumentId));
-          FunctionLogger.MethodInformation(_logger, $"Item created successfully. DocumentId: {resourceDependencyInformation.DocumentId}");
+          _logger.LogItemCreated(resourceDependencyInformation.DocumentId ?? "Unknown");
         }
-        catch (Exception cex)
+        catch (Exception createEx)
         {
-          // Log any exceptions during the create operation
-          resultObject.Errors.Add("Error in creating Cosmos DB item");
-          FunctionLogger.MethodException(_logger, cex, $"Error occurred while creating item. DocumentId: {resourceDependencyInformation.DocumentId}");
+          _logger.LogCreateItemFailed(createEx, resourceDependencyInformation.DocumentId ?? "Unknown");
+          resultObject.Errors.Add($"Failed to create item: {createEx.Message}");
         }
       }
-      catch (CosmosException ex)
-      {
-        // Log any Cosmos DB exceptions (other than NotFound)
-        resultObject.Errors.Add("Error in updating Cosmos DB item");
-        FunctionLogger.MethodException(_logger, ex, $"Error occurred while replacing item. DocumentId: {resourceDependencyInformation.DocumentId}");
-      }
       catch (Exception ex)
       {
-        // Log any unexpected exceptions
-        resultObject.Errors.Add("Error in cosmos DB operations");
-        FunctionLogger.MethodException(_logger, ex, "Unexpected error while processing CreateOrReplaceItemInDb operation.");
+        _logger.LogCreateOrReplaceUnexpectedError(ex, documentId);
+        resultObject.Errors.Add($"Unexpected error: {ex.Message}");
       }
-      resultObject.Information.Add($"Cosmos DB operation successful.");
-      return resultObject;
-    }
 
-    public async Task<ResourceDependencyInformation?> GetResourceDependencyInformation(string resourceId)
-    {
-      FunctionLogger.MethodStart(_logger, nameof(GetResourceDependencyInformation));
-      if (string.IsNullOrWhiteSpace(resourceId))
-      {
-        string error = $"Invalid resourceId provided: '{resourceId}'";
-        FunctionLogger.MethodWarning(_logger, error);
-        return null;
-      }
-      try
-      {
-        // Generate the document ID based on the resourceId
-        string documentId = ResourceDependencyInformation.GetDocumentId(resourceId);
-        // Attempt to retrieve the item from the Cosmos DB container
-        ItemResponse<ResourceDependencyInformation> itemResponse = await _container.ReadItemAsync<ResourceDependencyInformation>(documentId, new PartitionKey(documentId));
-        // Log and return the retrieved resource
-        FunctionLogger.MethodInformation(_logger, $"Successfully retrieved ResourceDependencyInformation for ResourceID: {resourceId}");
-        return itemResponse.Resource;
-      }
-      catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
-      {
-        string warning = $"ResourceDependencyInformation not found with ResourceID: {resourceId}";
-        FunctionLogger.MethodWarning(_logger, warning);
-      }
-      catch (Exception ex)
-      {        
-        // Log the exception with relevant context
-        string error = $"An error occurred while retrieving ResourceDependencyInformation for ResourceID: {resourceId}";
-        FunctionLogger.MethodException(_logger, ex, error);
-        // Rethrow if necessary (optional, depending on how you want to handle general exceptions)
-        throw;
-      }
-      return null;
+      return resultObject;
     }
 
     public async Task<HashSet<ResourceDependencyInformation>> RemoveConfigAndDependencies(string resourceId)
     {
-      FunctionLogger.MethodStart(_logger, nameof(RemoveConfigAndDependencies));
-      HashSet<ResourceDependencyInformation> updatedItems = new HashSet<ResourceDependencyInformation>();
-      try
+      var updatedItems = new HashSet<ResourceDependencyInformation>();
+
+      // Validate resourceId before proceeding
+      if (string.IsNullOrEmpty(resourceId))
       {
-        var documentId = ResourceDependencyInformation.GetDocumentId(resourceId);
-        try
-        {
-          await _container.DeleteItemAsync<ResourceDependencyInformation>(documentId, new PartitionKey(documentId));
-          FunctionLogger.MethodInformation(_logger, $"Successfully deleted configuration document with DocumentId: {documentId} from the Cosmos DB container.");
-        }
-        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
-        {
-          FunctionLogger.MethodWarning(_logger, $"Document not found for deletion in RemoveConfigAndDependencies. ResourceID: {resourceId}");
-        }
-        catch (Exception ex)
-        {
-          FunctionLogger.MethodException(_logger, ex, $"Error while deleting configuration document. ResourceID: {resourceId}");
-          throw; // Re-throw to ensure the operation halts if critical errors occur.
-        }
-        FunctionLogger.MethodInformation(_logger, "Deleted configuration from cosmos db container");
-        try
-        {
-          var query = _container.GetItemLinqQueryable<ResourceDependencyInformation>()
-              .Where(r =>
-              (r.AllowInbound != null && r.AllowInbound.SecurityRestrictions != null && r.AllowInbound.SecurityRestrictions.ResourceIds != null &&
-               r.AllowInbound.SecurityRestrictions.ResourceIds.Contains(resourceId)) ||
-              (r.AllowInbound != null && r.AllowInbound.ScmSecurityRestrictions != null && r.AllowInbound.ScmSecurityRestrictions.ResourceIds != null &&
-               r.AllowInbound.ScmSecurityRestrictions.ResourceIds.Contains(resourceId)) ||
-              (r.AllowOutbound != null && r.AllowOutbound.ResourceIds != null &&
-               r.AllowOutbound.ResourceIds.Contains(resourceId)))
-              .ToFeedIterator();
+        _logger.LogRemoveConfigEmptyResourceId();
+        return updatedItems;
+      }
 
-          while (query.HasMoreResults)
+      using (_logger.BeginPersistenceScope(nameof(RemoveConfigAndDependencies), resourceId))
+      {
+        try
+        {
+          _logger.LogRemovingConfigForResourceId(resourceId);
+
+          // Remove the record specific to resourceId
+          await RemoveConfig(resourceId);
+
+          try
           {
-            var currentResultSet = await query.ReadNextAsync();
-            foreach (var res in currentResultSet)
-            {
-              var updatedItem = RemoveResourceIdFromDocument(res, resourceId);
-              if (updatedItem?.DocumentId != null)
-              {
-                var itemReplaceResponse = await _container.ReplaceItemAsync(updatedItem, updatedItem.DocumentId, new PartitionKey(updatedItem.DocumentId));
-                updatedItems.Add(itemReplaceResponse.Resource);
+            // Find all documents where this resource id is present as inbound
+            var dependencyConfigs = await GetConfigsWhereInbound(resourceId);
+            _logger.LogFoundInboundConfigs(dependencyConfigs.Count, resourceId);
 
-                FunctionLogger.MethodInformation(_logger, $"Updated dependency document after removal, UpdatedDocumentId: {updatedItem.DocumentId}");
+            foreach (var document in dependencyConfigs)
+            {
+              // Remove resourceId from each document
+              var updatedDocument = RemoveResourceIdFromDocument(document, resourceId);
+
+              if (updatedDocument != null)
+              {
+                _logger.LogUpdatingDocumentAfterRemoval(document.DocumentId ?? "Unknown", resourceId);
+
+                // Update the document in the database
+                await CreateOrReplaceItemInDb(updatedDocument);
+                updatedItems.Add(updatedDocument);
               }
             }
+            _logger.LogRemoveConfigAndDependenciesComplete(resourceId, updatedItems.Count);
           }
-          FunctionLogger.MethodInformation(_logger, $"Completed RemoveConfigAndDependencies. ResourceID: {resourceId}, UpdatedItemCount: {updatedItems.Count}");
+          catch (Exception ex)
+          {
+            _logger.LogProcessingDependencyDocumentsError(ex, resourceId);
+            throw;
+          }
         }
         catch (Exception ex)
         {
-          FunctionLogger.MethodException(_logger, ex, $"Error while retrieving or processing dependency documents for ResourceID: {resourceId}");
+          _logger.LogRemoveConfigAndDependenciesCriticalFailure(ex, resourceId);
           throw;
         }
       }
-      catch(Exception ex)
-      {
-        FunctionLogger.MethodException(_logger, ex, $"Critical failure in RemoveConfigAndDependencies for ResourceID: {resourceId}");
-        throw; // Re-throw to ensure upstream systems are aware of the failure.
-      }
+
       return updatedItems;
     }
 
     public async Task RemoveConfig(string resourceId)
     {
-      FunctionLogger.MethodStart(_logger, nameof(RemoveConfig));
       // Ensure the resourceId is valid before attempting the operation
       if (string.IsNullOrEmpty(resourceId))
       {
-        FunctionLogger.MethodWarning(_logger, "ResourceId is empty or null. Cannot proceed with the removal.");
+        _logger.LogRemoveConfigInvalidResourceId();
         return;
       }
-      var documentId = ResourceDependencyInformation.GetDocumentId(resourceId);
-      try
-      {
-        await _container.DeleteItemAsync<ResourceDependencyInformation>(documentId, new PartitionKey(documentId));
 
-        FunctionLogger.MethodInformation(_logger, $"Successfully deleted document from Cosmos DB. DocumentId: {documentId}, ResourceId: {resourceId}");
-      }
-      catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+      var documentId = ResourceDependencyInformation.GetDocumentId(resourceId);
+
+      using (_logger.BeginCosmosDbScope("Delete", documentId))
       {
-        // Handle the case where the document is not found
-        FunctionLogger.MethodWarning(_logger, $"Document not found for deletion. ResourceId: {resourceId}, DocumentId: {documentId}");
-      }
-      catch (CosmosException ex)
-      {
-        // Handle other Cosmos DB specific errors
-        FunctionLogger.MethodException(_logger, ex, $"Error occurred while deleting document from Cosmos DB. ResourceId: {resourceId}, DocumentId: {documentId}");
-        throw; // Re-throw for higher-level handling if needed
-      }
-      catch (Exception ex)
-      {
-        // Catch other unexpected errors
-        FunctionLogger.MethodException(_logger, ex, $"Unexpected error while removing configuration. ResourceId: {resourceId}");
-        throw; // Re-throw for higher-level handling if needed
+        try
+        {
+          await _container.DeleteItemAsync<ResourceDependencyInformation>(documentId, new PartitionKey(documentId));
+          _logger.LogDocumentDeletedSuccessfully(documentId, resourceId);
+        }
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+          // Handle the case where the document is not found
+          _logger.LogDocumentNotFoundForDeletion(resourceId, documentId);
+        }
+        catch (CosmosException ex)
+        {
+          // Handle other Cosmos DB specific errors
+          _logger.LogDeleteDocumentError(ex, resourceId, documentId);
+          throw;
+        }
+        catch (Exception ex)
+        {
+          // Catch other unexpected errors
+          _logger.LogRemoveConfigUnexpectedError(ex, resourceId);
+          throw;
+        }
       }
     }
 
     public async Task<string[]> GetResourceIdsWhereOutbound(string resourceId)
     {
-      FunctionLogger.MethodStart(_logger, nameof(GetResourceIdsWhereOutbound));
       List<string> resourceIds = new List<string>();
 
       // Ensure resourceId is not null or empty before performing any DB operation
       if (string.IsNullOrEmpty(resourceId))
       {
-        FunctionLogger.MethodInformation(_logger, "Provided resourceId is null or empty. Skipping query.");
+        _logger.LogGetResourceIdsWhereOutboundSkipped();
         return resourceIds.ToArray();
       }
-      try
-      {
-        var query = _container.GetItemLinqQueryable<ResourceDependencyInformation>()
-            .Where(r => r.AllowOutbound != null && r.AllowOutbound.ResourceIds != null && r.AllowOutbound.ResourceIds.Contains(resourceId))
-            .ToFeedIterator();
 
-        while (query.HasMoreResults)
+      using (_logger.BeginPersistenceScope(nameof(GetResourceIdsWhereOutbound), resourceId))
+      {
+        try
         {
-          var currentResultSet = await query.ReadNextAsync();
-          foreach (var item in currentResultSet)
+          var query = _container.GetItemLinqQueryable<ResourceDependencyInformation>()
+              .Where(r => r.AllowOutbound != null &&
+                          r.AllowOutbound.ResourceIds != null &&
+                          r.AllowOutbound.ResourceIds.Contains(resourceId))
+              .Select(r => r.ResourceId)
+              .ToFeedIterator();
+
+          while (query.HasMoreResults)
           {
-            if (!string.IsNullOrEmpty(item.ResourceId))
+            var currentResultSet = await query.ReadNextAsync();
+            foreach (var id in currentResultSet)
             {
-              resourceIds.Add(item.ResourceId);
+              if (!string.IsNullOrEmpty(id))
+              {
+                resourceIds.Add(id);
+              }
             }
           }
+          _logger.LogFoundResourceIdsWhereOutbound(resourceIds.Count, resourceId);
         }
-        FunctionLogger.MethodInformation(_logger, $"Retrieved {resourceIds.Count} items where resource ID: {resourceId} is allowed for outbound.");
+        catch (CosmosException cex)
+        {
+          _logger.LogGetResourceIdsWhereOutboundCosmosError(cex, resourceId);
+        }
+        catch (Exception ex)
+        {
+          _logger.LogGetResourceIdsWhereOutboundError(ex, resourceId);
+        }
       }
-      catch (CosmosException cex)
-      {
-        FunctionLogger.MethodException(_logger, cex, $"Cosmos DB exception occurred while fetching outbound resource IDs for resource ID: {resourceId}");
-      }
-      catch (Exception ex)
-      {
-        FunctionLogger.MethodException(_logger, ex, "An error occurred while processing GetResourceIdsWhereOutbound.");
-      }
+
       return resourceIds.ToArray();
     }
 
     public async Task<HashSet<ResourceDependencyInformation>> GetConfigsWhereInbound(string resourceId)
     {
-      FunctionLogger.MethodStart(_logger, nameof(GetConfigsWhereInbound));
       var resourceDependencyInfoHashSet = new HashSet<ResourceDependencyInformation>();
+
       // Validate the resourceId before proceeding with the query
       if (string.IsNullOrEmpty(resourceId))
       {
-        FunctionLogger.MethodInformation(_logger, "Provided resourceId is null or empty. Skipping query.");
+        _logger.LogGetConfigsWhereInboundSkipped();
         return resourceDependencyInfoHashSet;
       }
-      try
-      {
-        var query = _container.GetItemLinqQueryable<ResourceDependencyInformation>()
-             .Where(r => r.AllowInbound != null &&
-               r.AllowInbound.SecurityRestrictions != null &&
-               r.AllowInbound.SecurityRestrictions.ResourceIds != null &&
-               r.AllowInbound.SecurityRestrictions.ResourceIds.Contains(resourceId)).ToFeedIterator();
 
-        // Fetching and adding items to the result hash set
-        while (query.HasMoreResults)
+      using (_logger.BeginPersistenceScope(nameof(GetConfigsWhereInbound), resourceId))
+      {
+        try
         {
-          var currentResultSet = await query.ReadNextAsync();
-          foreach (var item in currentResultSet)
+          var query = _container.GetItemLinqQueryable<ResourceDependencyInformation>()
+              .Where(r => r.AllowInbound != null &&
+                          r.AllowInbound.SecurityRestrictions != null &&
+                          r.AllowInbound.SecurityRestrictions.ResourceIds != null &&
+                          r.AllowInbound.SecurityRestrictions.ResourceIds.Contains(resourceId))
+              .ToFeedIterator();
+
+          // Fetching and adding items to the result hash set
+          while (query.HasMoreResults)
           {
-            resourceDependencyInfoHashSet.Add(item);
+            var currentResultSet = await query.ReadNextAsync();
+            foreach (var item in currentResultSet)
+            {
+              resourceDependencyInfoHashSet.Add(item);
+            }
           }
+          _logger.LogInboundConfigRetrievalComplete(resourceDependencyInfoHashSet.Count, resourceId);
         }
-        FunctionLogger.MethodInformation(_logger, $"Completed retrieval with {resourceDependencyInfoHashSet.Count} configurations found for inbound dependencies.");
+        catch (CosmosException cex)
+        {
+          // Specific error handling for Cosmos DB issues
+          _logger.LogGetConfigsWhereInboundCosmosError(cex, resourceId);
+        }
+        catch (Exception ex)
+        {
+          // General error handling
+          _logger.LogGetConfigsWhereInboundError(ex, resourceId);
+        }
       }
-      catch (CosmosException cex)
-      {
-        // Specific error handling for Cosmos DB issues
-        FunctionLogger.MethodException(_logger, cex, "Cosmos DB exception occurred while retrieving inbound configurations.");
-      }
-      catch (Exception ex)
-      {
-        // General error handling
-        FunctionLogger.MethodException(_logger, ex, "An error occurred while processing GetConfigsWhereInbound.");
-      }
+
       return resourceDependencyInfoHashSet;
     }
 
     internal ResourceDependencyInformation? RemoveResourceIdFromDocument(ResourceDependencyInformation? document, string? resourceId)
     {
-      FunctionLogger.MethodStart(_logger, nameof(RemoveResourceIdFromDocument));
       if (document == null || string.IsNullOrEmpty(resourceId))
       {
-        FunctionLogger.MethodInformation(_logger, "Document or Resource ID is null, skipping removal.");
+        _logger.LogRemoveResourceIdFromDocumentSkipped();
         return document;
       }
+
       try
       {
         // Process AllowInbound SecurityRestrictions ResourceIds if they exist
@@ -317,30 +292,30 @@ namespace DynamicAllowListingLib
         {
           document.AllowInbound.SecurityRestrictions.ResourceIds =
               RemoveItemFromArray(document.AllowInbound.SecurityRestrictions.ResourceIds, resourceId);
+          _logger.LogRemovedFromInboundSecurityRestrictions(resourceId);
+        }
 
-          FunctionLogger.MethodInformation(_logger, $"Removed ResourceId from AllowInbound.SecurityRestrictions.ResourceIds if it existed: {resourceId}");
-        }        
         // Process AllowInbound ScmSecurityRestrictions ResourceIds if they exist
         if (document.AllowInbound?.ScmSecurityRestrictions?.ResourceIds != null)
         {
           document.AllowInbound.ScmSecurityRestrictions.ResourceIds =
               RemoveItemFromArray(document.AllowInbound.ScmSecurityRestrictions.ResourceIds, resourceId);
-
-          FunctionLogger.MethodInformation(_logger, $"Removed ResourceId from AllowInbound.ScmSecurityRestrictions.ResourceIds if it existed: {resourceId}");
+          _logger.LogRemovedFromScmSecurityRestrictions(resourceId);
         }
+
         // Process AllowOutbound ResourceIds if they exist
         if (document.AllowOutbound?.ResourceIds != null)
         {
           document.AllowOutbound.ResourceIds =
               RemoveItemFromArray(document.AllowOutbound.ResourceIds, resourceId);
-
-          FunctionLogger.MethodInformation(_logger, $"Removed ResourceId from AllowOutbound.ResourceIds if it existed: {resourceId}");
+          _logger.LogRemovedFromOutboundResourceIds(resourceId);
         }
       }
-      catch(Exception ex)
+      catch (Exception ex)
       {
-        FunctionLogger.MethodException(_logger, ex, $"Error occurred while removing ResourceId: {resourceId} from document.");
+        _logger.LogRemoveResourceIdFromDocumentError(ex, resourceId);
       }
+
       return document;
     }
 
@@ -353,116 +328,155 @@ namespace DynamicAllowListingLib
 
     public async Task<List<ResourceDependencyInformation>> FindByInternalAndThirdPartyTagName(ServiceTag serviceTag)
     {
-      FunctionLogger.MethodStart(_logger, nameof(FindByInternalAndThirdPartyTagName));
       List<ResourceDependencyInformation> result = new List<ResourceDependencyInformation>();
-      
+
       // Validate input to avoid unnecessary queries
       if (serviceTag == null || string.IsNullOrEmpty(serviceTag.Id))
       {
-        FunctionLogger.MethodInformation(_logger, "Invalid service tag: null or empty Id.");
-        return result; // Early return if the input is invalid
+        _logger.LogInvalidServiceTagNullOrEmpty();
+        return result;
       }
-      try
-      {
-        var query = _container.GetItemLinqQueryable<ResourceDependencyInformation>()
-            .Where(p => p.AllowInbound != null &&
-                                   p.AllowInbound.SecurityRestrictions != null &&
-                                   p.AllowInbound.SecurityRestrictions.NewDayInternalAndThirdPartyTags != null &&
-                                   p.AllowInbound.SecurityRestrictions.NewDayInternalAndThirdPartyTags.Any(t => t.Equals(serviceTag.Id)))
-            .ToFeedIterator();
 
-        // Fetch and process query results
-        while (query.HasMoreResults)
-        {
-          var currentResultSet = await query.ReadNextAsync();
-          result.AddRange(currentResultSet);
-        }
-
-        // Log success if items are found
-        if (result.Count > 0)
-        {
-          FunctionLogger.MethodInformation(_logger, $"Found {result.Count} ResourceDependencyInformation items matching tag: {serviceTag.Id}");
-        }
-        else
-        {
-          FunctionLogger.MethodInformation(_logger, "No ResourceDependencyInformation found for the provided tag.");
-        }
-      }
-      catch (Exception ex)
+      using (_logger.BeginPersistenceScope(nameof(FindByInternalAndThirdPartyTagName)))
       {
-        FunctionLogger.MethodException(_logger, ex);
+        try
+        {
+          _logger.LogSearchingByServiceTag(serviceTag.Id, serviceTag.Name ?? "Unknown");
+
+          var query = _container.GetItemLinqQueryable<ResourceDependencyInformation>()
+              .Where(r => r.AllowInbound != null &&
+                          r.AllowInbound.SecurityRestrictions != null &&
+                          r.AllowInbound.SecurityRestrictions.NewDayInternalAndThirdPartyTags != null &&
+                          r.AllowInbound.SecurityRestrictions.NewDayInternalAndThirdPartyTags.Contains(serviceTag.Name))
+              .ToFeedIterator();
+
+          while (query.HasMoreResults)
+          {
+            var currentResultSet = await query.ReadNextAsync();
+            result.AddRange(currentResultSet);
+          }
+          _logger.LogFoundConfigsForServiceTag(result.Count, serviceTag.Name ?? "Unknown");
+        }
+        catch (Exception ex)
+        {
+          _logger.LogFindByServiceTagError(ex, serviceTag.Name ?? "Unknown");
+        }
       }
+
       return result;
+    }
+
+    public async Task<ResourceDependencyInformation?> GetResourceDependencyInformation(string resourceId)
+    {
+      // Validate resourceId before proceeding
+      if (string.IsNullOrEmpty(resourceId))
+      {
+        _logger.LogGetResourceDependencyInfoNullResourceId();
+        return null;
+      }
+
+      var documentId = ResourceDependencyInformation.GetDocumentId(resourceId);
+
+      using (_logger.BeginCosmosDbScope("Read", documentId))
+      {
+        try
+        {
+          _logger.LogQueryingResourceDependencyInfo(resourceId, documentId);
+
+          var response = await _container.ReadItemAsync<ResourceDependencyInformation>(
+              documentId,
+              new PartitionKey(documentId));
+          _logger.LogResourceDependencyInfoFound(resourceId);
+
+          return response.Resource;
+        }
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+          _logger.LogResourceDependencyInfoNotFound(resourceId);
+          return null;
+        }
+        catch (CosmosException cex)
+        {
+          _logger.LogGetResourceDependencyInfoCosmosError(cex, resourceId);
+          return null;
+        }
+        catch (Exception ex)
+        {
+          _logger.LogGetResourceDependencyInfoError(ex, resourceId);
+          return null;
+        }
+      }
     }
 
     public async Task<ResourceDependencyInformation> GetFirstOrDefault()
     {
-      FunctionLogger.MethodStart(_logger, nameof(GetFirstOrDefault));
-      try
+      using (_logger.BeginPersistenceScope(nameof(GetFirstOrDefault)))
       {
-        var query = _container.GetItemLinqQueryable<ResourceDependencyInformation>().ToFeedIterator();
-        if (query.HasMoreResults)
-        { 
-          // Log that there are results to read
-          FunctionLogger.MethodInformation(_logger, "Results found, reading the first page of results.");
+        try
+        {
+          var query = _container.GetItemLinqQueryable<ResourceDependencyInformation>()
+              .Take(1)
+              .ToFeedIterator();
 
-          var result = await query.ReadNextAsync();
-          var firstItem = result.FirstOrDefault();
-
-          if (firstItem != null)
+          if (query.HasMoreResults)
           {
-            // Log when the first item is found
-            FunctionLogger.MethodInformation(_logger, $"First item found with ID: {firstItem.DocumentId}.");
-            return firstItem;
+            var currentResultSet = await query.ReadNextAsync();
+            var firstItem = currentResultSet.FirstOrDefault();
+
+            if (firstItem != null)
+            {
+              _logger.LogFirstItemRetrieved();
+              return firstItem;
+            }
+            else
+            {
+              _logger.LogNoItemsInFirstPage();
+              return new ResourceDependencyInformation();
+            }
           }
           else
           {
-            // Log when no item is found
-            FunctionLogger.MethodWarning(_logger, "No items found in the first page of results, returning a new ResourceDependencyInformation.");
-            return new ResourceDependencyInformation(); // Return a default object if no item is found
+            _logger.LogNoResultsInQuery();
+            return new ResourceDependencyInformation();
           }
         }
-        else
+        catch (Exception ex)
         {
-          // Log when no results are found at all
-          FunctionLogger.MethodWarning(_logger, "No results found in the query.");
-          return new ResourceDependencyInformation(); // Return a default object if no items are returned
+          _logger.LogGetFirstOrDefaultError(ex);
         }
       }
-      catch(Exception ex)
-      {
-        FunctionLogger.MethodException(_logger, ex);
-      }
+
       return new ResourceDependencyInformation();
     }
 
     public async Task<List<ResourceDependencyInformation>> GetAll()
     {
-      FunctionLogger.MethodStart(_logger, nameof(GetAll));
       List<ResourceDependencyInformation> results = new List<ResourceDependencyInformation>();
-      try
-      { // Log the query process
-        FunctionLogger.MethodInformation(_logger, "Starting to query for all ResourceDependencyInformation documents from Cosmos DB.");
-        
-        var query = _container.GetItemLinqQueryable<ResourceDependencyInformation>().ToFeedIterator();
-        // Log the process of fetching results
-        int resultCount = 0;
-        while (query.HasMoreResults)
-        {
-          var currentResultSet = await query.ReadNextAsync();
-          resultCount += currentResultSet.Count;
-          results.AddRange(currentResultSet);
 
-          // Log the number of items retrieved in each batch
-          FunctionLogger.MethodInformation(_logger, $"Fetched {currentResultSet.Count} items in the current batch.");
-        }
-        // Log total number of results fetched
-        FunctionLogger.MethodInformation(_logger, $"Total items retrieved: {resultCount}");
-      }
-      catch (Exception ex)
+      using (_logger.BeginPersistenceScope(nameof(GetAll)))
       {
-        FunctionLogger.MethodException(_logger, ex);
+        try
+        {
+          _logger.LogGetAllStarting();
+
+          var query = _container.GetItemLinqQueryable<ResourceDependencyInformation>().ToFeedIterator();
+
+          int resultCount = 0;
+          while (query.HasMoreResults)
+          {
+            var currentResultSet = await query.ReadNextAsync();
+            resultCount += currentResultSet.Count;
+            results.AddRange(currentResultSet);
+
+            _logger.LogGetAllBatchFetched(currentResultSet.Count);
+          }
+        }
+        catch (Exception ex)
+        {
+          _logger.LogGetAllError(ex);
+        }
       }
+
       return results;
     }
   }

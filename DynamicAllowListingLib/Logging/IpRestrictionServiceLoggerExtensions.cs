@@ -44,6 +44,15 @@ namespace DynamicAllowListingLib.Logging
         string methodName,
         long durationMs);
 
+    [LoggerMessage(
+        EventId = 6003,
+        Level = LogLevel.Warning,
+        Message = "{MethodName} | {Message}")]
+    public static partial void LogMethodWarning(
+        this ILogger logger,
+        string methodName,
+        string message);
+
     // ============================================================
     // FindRelatedDependencyConfigs (EventIds 6020-6039)
     // ============================================================
@@ -128,17 +137,17 @@ namespace DynamicAllowListingLib.Logging
     [LoggerMessage(
         EventId = 6044,
         Level = LogLevel.Information,
-        Message = "Resource config validation completed | ValidConfigs: {ValidCount} | RemovedConfigs: {RemovedCount} | Duration: {DurationMs}ms")]
+        Message = "Config validation completed | ValidConfigs: {ValidCount} | InvalidConfigs: {InvalidCount} | Duration: {DurationMs}ms")]
     public static partial void LogConfigValidationComplete(
         this ILogger logger,
         int validCount,
-        int removedCount,
+        int invalidCount,
         long durationMs);
 
     [LoggerMessage(
         EventId = 6045,
         Level = LogLevel.Warning,
-        Message = "Invalid configs detected | Type: {InvalidType} | Count: {Count} | ResourceIds: {ResourceIds}")]
+        Message = "Invalid configs found | Type: {InvalidType} | Count: {Count} | ResourceIds: {ResourceIds}")]
     public static partial void LogInvalidConfigs(
         this ILogger logger,
         string invalidType,
@@ -152,15 +161,15 @@ namespace DynamicAllowListingLib.Logging
     [LoggerMessage(
         EventId = 6060,
         Level = LogLevel.Information,
-        Message = "Removing invalid configs from database | ResourceCount: {ResourceCount}")]
+        Message = "Removing invalid configs from database | Count: {Count}")]
     public static partial void LogRemovingInvalidConfigsFromDb(
         this ILogger logger,
-        int resourceCount);
+        int count);
 
     [LoggerMessage(
         EventId = 6061,
         Level = LogLevel.Information,
-        Message = "Removed invalid resource IDs from database | ResourceIds: {ResourceIds} | Duration: {DurationMs}ms")]
+        Message = "Removed resource IDs from database | ResourceIds: {ResourceIds} | Duration: {DurationMs}ms")]
     public static partial void LogRemovedResourceIdsFromDb(
         this ILogger logger,
         string resourceIds,
@@ -283,6 +292,136 @@ namespace DynamicAllowListingLib.Logging
         int configCount);
 
     // ============================================================
+    // GetValidDependencyConfigs Operations (EventIds 6140-6159)
+    // ============================================================
+
+    [LoggerMessage(
+        EventId = 6140,
+        Level = LogLevel.Warning,
+        Message = "No updated service tags provided | Returning empty configuration list")]
+    public static partial void LogNoUpdatedServiceTagsProvided(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = 6141,
+        Level = LogLevel.Information,
+        Message = "Fetching related dependency configurations | ServiceTagCount: {ServiceTagCount}")]
+    public static partial void LogFetchingRelatedDependencyConfigs(
+        this ILogger logger,
+        int serviceTagCount);
+
+    [LoggerMessage(
+        EventId = 6142,
+        Level = LogLevel.Information,
+        Message = "No related dependency configs found | Returning empty configuration list")]
+    public static partial void LogNoRelatedDependencyConfigsFound(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = 6143,
+        Level = LogLevel.Information,
+        Message = "Validating dependency configurations | ConfigCount: {ConfigCount}")]
+    public static partial void LogValidatingDependencyConfigs(
+        this ILogger logger,
+        int configCount);
+
+    [LoggerMessage(
+        EventId = 6144,
+        Level = LogLevel.Information,
+        Message = "Updating resources | ResourceCount: {ResourceCount} | ResourceNames: {ResourceNames}")]
+    public static partial void LogUpdatingResources(
+        this ILogger logger,
+        int resourceCount,
+        string resourceNames);
+
+    [LoggerMessage(
+        EventId = 6145,
+        Level = LogLevel.Information,
+        Message = "GetValidDependencyConfigs completed | TotalConfigs: {TotalConfigs} | Duration: {DurationMs}ms")]
+    public static partial void LogGetValidDependencyConfigsComplete(
+        this ILogger logger,
+        int totalConfigs,
+        long durationMs);
+
+    // ============================================================
+    // Deleted Service Tag Operations (EventIds 6160-6179)
+    // ============================================================
+
+    [LoggerMessage(
+        EventId = 6160,
+        Level = LogLevel.Information,
+        Message = "Identifying deleted service tags | InputCount: {InputCount}")]
+    public static partial void LogIdentifyingDeletedServiceTags(
+        this ILogger logger,
+        int inputCount);
+
+    [LoggerMessage(
+        EventId = 6161,
+        Level = LogLevel.Information,
+        Message = "Deleted service tags identified | DeletedCount: {DeletedCount} | TagIds: {TagIds}")]
+    public static partial void LogDeletedServiceTagsIdentified(
+        this ILogger logger,
+        int deletedCount,
+        string tagIds);
+
+    [LoggerMessage(
+        EventId = 6162,
+        Level = LogLevel.Information,
+        Message = "No deleted service tags found")]
+    public static partial void LogNoDeletedServiceTagsFound(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = 6163,
+        Level = LogLevel.Information,
+        Message = "Removing deleted service tags from configs | DeletedTagCount: {DeletedTagCount} | ConfigCount: {ConfigCount}")]
+    public static partial void LogRemovingDeletedServiceTagsFromConfigs(
+        this ILogger logger,
+        int deletedTagCount,
+        int configCount);
+
+    [LoggerMessage(
+        EventId = 6164,
+        Level = LogLevel.Information,
+        Message = "Removed tag from resource config | TagName: {TagName} | ResourceId: {ResourceId}")]
+    public static partial void LogRemovedTagFromResourceConfig(
+        this ILogger logger,
+        string tagName,
+        string resourceId);
+
+    [LoggerMessage(
+        EventId = 6165,
+        Level = LogLevel.Information,
+        Message = "RemoveDeletedServiceTagsFromConfig completed | ModifiedConfigCount: {ModifiedConfigCount} | Duration: {DurationMs}ms")]
+    public static partial void LogRemoveDeletedServiceTagsComplete(
+        this ILogger logger,
+        int modifiedConfigCount,
+        long durationMs);
+
+    [LoggerMessage(
+        EventId = 6166,
+        Level = LogLevel.Warning,
+        Message = "No deleted service tags provided | Returning unmodified config list")]
+    public static partial void LogNoDeletedServiceTagsProvided(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = 6167,
+        Level = LogLevel.Warning,
+        Message = "No dependency configurations provided | Returning empty list")]
+    public static partial void LogNoDependencyConfigsProvided(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = 6168,
+        Level = LogLevel.Information,
+        Message = "Removing deleted service tags from database | Count: {Count}")]
+    public static partial void LogRemovingDeletedServiceTagsFromDb(
+        this ILogger logger,
+        int count);
+
+    [LoggerMessage(
+        EventId = 6169,
+        Level = LogLevel.Warning,
+        Message = "No service tags provided or empty set | Returning empty list")]
+    public static partial void LogNoServiceTagsProvided(this ILogger logger);
+
+    // ============================================================
     // Scoped Logging Helpers
     // ============================================================
 
@@ -330,6 +469,41 @@ namespace DynamicAllowListingLib.Logging
       {
         ["OperationType"] = "SubscriptionOperation",
         ["SubscriptionId"] = subscriptionId,
+        ["CorrelationId"] = CorrelationContext.CorrelationId
+      });
+    }
+
+    /// <summary>
+    /// Creates a logging scope for service tag operations.
+    /// </summary>
+    public static IDisposable? BeginServiceTagScope(
+        this ILogger logger,
+        string operationType,
+        int serviceTagCount)
+    {
+      return logger.BeginScope(new Dictionary<string, object>
+      {
+        ["ServiceName"] = "IpRestrictionServiceForServiceTag",
+        ["OperationType"] = operationType,
+        ["ServiceTagCount"] = serviceTagCount,
+        ["CorrelationId"] = CorrelationContext.CorrelationId,
+        ["Timestamp"] = DateTimeOffset.UtcNow
+      });
+    }
+
+    /// <summary>
+    /// Creates a logging scope for deleted service tag operations.
+    /// </summary>
+    public static IDisposable? BeginDeletedTagScope(
+        this ILogger logger,
+        int deletedTagCount,
+        int configCount)
+    {
+      return logger.BeginScope(new Dictionary<string, object>
+      {
+        ["OperationType"] = "DeletedServiceTagRemoval",
+        ["DeletedTagCount"] = deletedTagCount,
+        ["ConfigCount"] = configCount,
         ["CorrelationId"] = CorrelationContext.CorrelationId
       });
     }
