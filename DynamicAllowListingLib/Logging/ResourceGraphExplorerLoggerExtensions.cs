@@ -13,64 +13,6 @@ namespace DynamicAllowListingLib.Logging
   /// </summary>
   public static partial class ResourceGraphExplorerLoggerExtensions
   {
-    // ============================================================
-    // Method Lifecycle (EventIds 9000-9019)
-    // ============================================================
-
-    [LoggerMessage(
-        EventId = 9000,
-        Level = LogLevel.Information,
-        Message = "Starting method: {MethodName}")]
-    public static partial void LogMethodStart(
-        this ILogger logger,
-        string methodName);
-
-    [LoggerMessage(
-        EventId = 9001,
-        Level = LogLevel.Information,
-        Message = "Completed method: {MethodName} | Success: {Success}")]
-    public static partial void LogMethodComplete(
-        this ILogger logger,
-        string methodName,
-        bool success);
-
-    [LoggerMessage(
-        EventId = 9002,
-        Level = LogLevel.Error,
-        Message = "Exception in method: {MethodName}")]
-    public static partial void LogMethodException(
-        this ILogger logger,
-        Exception exception,
-        string methodName);
-
-    [LoggerMessage(
-        EventId = 9003,
-        Level = LogLevel.Warning,
-        Message = "{MethodName} | {Message}")]
-    public static partial void LogMethodWarning(
-        this ILogger logger,
-        string methodName,
-        string message);
-
-    [LoggerMessage(
-        EventId = 9004,
-        Level = LogLevel.Information,
-        Message = "Completed method: {MethodName} | Duration: {DurationMs}ms | Success: {Success}")]
-    public static partial void LogMethodCompleteWithDuration(
-        this ILogger logger,
-        string methodName,
-        long durationMs,
-        bool success);
-
-    [LoggerMessage(
-        EventId = 9005,
-        Level = LogLevel.Error,
-        Message = "Exception in method: {MethodName} | Duration: {DurationMs}ms")]
-    public static partial void LogMethodExceptionWithDuration(
-        this ILogger logger,
-        Exception exception,
-        string methodName,
-        long durationMs);
 
     // ============================================================
     // GetResourceInstances (EventIds 9020-9039)

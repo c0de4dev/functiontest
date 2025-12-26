@@ -17,6 +17,7 @@ namespace DynamicAllowListingLib.Logging
     private readonly ILogger<EnhancedTelemetryService> _logger;
     private readonly ICustomTelemetryService? _customTelemetry;
     private readonly ActivitySource _activitySource;
+    private readonly TimeProvider _timeProvider;
 
     // Performance thresholds
     private const long SlowOperationThresholdMs = 5000;
@@ -24,11 +25,13 @@ namespace DynamicAllowListingLib.Logging
 
     public EnhancedTelemetryService(
         ILogger<EnhancedTelemetryService> logger,
-        ICustomTelemetryService? customTelemetry = null)
+        ICustomTelemetryService? customTelemetry = null,
+        TimeProvider? timeProvider = null)
     {
       _logger = logger ?? throw new ArgumentNullException(nameof(logger));
       _customTelemetry = customTelemetry;
       _activitySource = new ActivitySource("DynamicAllowListing.Enhanced", "1.0.0");
+      _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>
@@ -41,7 +44,7 @@ namespace DynamicAllowListingLib.Logging
         Dictionary<string, object>? additionalTags = null)
     {
       using var activity = _activitySource.StartActivity(operationName, ActivityKind.Internal);
-      var stopwatch = Stopwatch.StartNew();
+      var startTimestamp = _timeProvider.GetTimestamp();
       var operationId = Guid.NewGuid().ToString("N")[..8];
 
       // Build context for logging
@@ -58,9 +61,7 @@ namespace DynamicAllowListingLib.Logging
         {
           var result = await operation();
 
-          stopwatch.Stop();
-          var durationMs = stopwatch.ElapsedMilliseconds;
-
+          var durationMs = GetElapsedMilliseconds(startTimestamp);
 
           // Set success tags
           activity?.SetTag("success", true);
@@ -75,8 +76,7 @@ namespace DynamicAllowListingLib.Logging
         }
         catch (Exception ex)
         {
-          stopwatch.Stop();
-          var durationMs = stopwatch.ElapsedMilliseconds;
+          var durationMs = GetElapsedMilliseconds(startTimestamp);
 
           // Set error tags
           activity?.SetTag("success", false);
@@ -110,7 +110,7 @@ namespace DynamicAllowListingLib.Logging
         Dictionary<string, object>? additionalTags = null)
     {
       using var activity = _activitySource.StartActivity(operationName, ActivityKind.Internal);
-      var stopwatch = Stopwatch.StartNew();
+      var startTimestamp = _timeProvider.GetTimestamp();
       var operationId = Guid.NewGuid().ToString("N")[..8];
 
       var context = BuildOperationContext(operationName, operationId, resourceInfo, additionalTags);
@@ -124,8 +124,7 @@ namespace DynamicAllowListingLib.Logging
         {
           var result = operation();
 
-          stopwatch.Stop();
-          var durationMs = stopwatch.ElapsedMilliseconds;
+          var durationMs = GetElapsedMilliseconds(startTimestamp);
 
           activity?.SetTag("success", true);
           activity?.SetTag("duration_ms", durationMs);
@@ -137,8 +136,7 @@ namespace DynamicAllowListingLib.Logging
         }
         catch (Exception ex)
         {
-          stopwatch.Stop();
-          var durationMs = stopwatch.ElapsedMilliseconds;
+          var durationMs = GetElapsedMilliseconds(startTimestamp);
 
           activity?.SetTag("success", false);
           activity?.SetTag("error", ex.Message);
@@ -178,7 +176,7 @@ namespace DynamicAllowListingLib.Logging
         Func<Task<(T Result, int StatusCode)>> operation)
     {
       var startTime = DateTimeOffset.UtcNow;
-      var stopwatch = Stopwatch.StartNew();
+      var startTimestamp = _timeProvider.GetTimestamp();
       var sanitizedUrl = url;
 
       using var activity = _activitySource.StartActivity($"HTTP {method}", ActivityKind.Client);
@@ -191,7 +189,8 @@ namespace DynamicAllowListingLib.Logging
         {
           var (result, statusCode) = await operation();
 
-          stopwatch.Stop();
+          var elapsed = _timeProvider.GetElapsedTime(startTimestamp);
+          var elapsedMs = (long)elapsed.TotalMilliseconds;
           var success = statusCode >= 200 && statusCode < 400;
 
           activity?.SetTag("http.status_code", statusCode);
@@ -203,17 +202,18 @@ namespace DynamicAllowListingLib.Logging
               operationName,
               sanitizedUrl,
               startTime,
-              stopwatch.Elapsed,
+              elapsed,
               statusCode.ToString(),
               success);
 
-          _logger.LogHttpDependencyComplete(method, sanitizedUrl, statusCode, stopwatch.ElapsedMilliseconds, success);
+          _logger.LogHttpDependencyComplete(method, sanitizedUrl, statusCode, elapsedMs, success);
 
           return result;
         }
         catch (Exception ex)
         {
-          stopwatch.Stop();
+          var elapsed = _timeProvider.GetElapsedTime(startTimestamp);
+          var elapsedMs = (long)elapsed.TotalMilliseconds;
 
           activity?.SetTag("error", ex.Message);
           activity?.SetTag("success", false);
@@ -224,11 +224,11 @@ namespace DynamicAllowListingLib.Logging
               operationName,
               sanitizedUrl,
               startTime,
-              stopwatch.Elapsed,
+              elapsed,
               "Exception",
               false);
 
-          _logger.LogHttpDependencyFailed(ex, method, sanitizedUrl, stopwatch.ElapsedMilliseconds);
+          _logger.LogHttpDependencyFailed(ex, method, sanitizedUrl, elapsedMs);
 
           throw;
         }
@@ -245,7 +245,7 @@ namespace DynamicAllowListingLib.Logging
         Func<Task<T>> operation)
     {
       var startTime = DateTimeOffset.UtcNow;
-      var stopwatch = Stopwatch.StartNew();
+      var startTimestamp = _timeProvider.GetTimestamp();
 
       using var activity = _activitySource.StartActivity($"CosmosDB {operationName}", ActivityKind.Client);
       activity?.SetTag("db.system", "cosmosdb");
@@ -258,7 +258,8 @@ namespace DynamicAllowListingLib.Logging
         {
           var result = await operation();
 
-          stopwatch.Stop();
+          var elapsed = _timeProvider.GetElapsedTime(startTimestamp);
+          var elapsedMs = (long)elapsed.TotalMilliseconds;
 
           activity?.SetTag("success", true);
 
@@ -268,17 +269,18 @@ namespace DynamicAllowListingLib.Logging
               operationName,
               documentId ?? "N/A",
               startTime,
-              stopwatch.Elapsed,
+              elapsed,
               "Success",
               true);
 
-          _logger.LogDatabaseDependencyComplete(operationName, databaseName, documentId ?? "N/A", stopwatch.ElapsedMilliseconds, true);
+          _logger.LogDatabaseDependencyComplete(operationName, databaseName, documentId ?? "N/A", elapsedMs, true);
 
           return result;
         }
         catch (Exception ex)
         {
-          stopwatch.Stop();
+          var elapsed = _timeProvider.GetElapsedTime(startTimestamp);
+          var elapsedMs = (long)elapsed.TotalMilliseconds;
 
           activity?.SetTag("success", false);
           activity?.SetTag("error", ex.Message);
@@ -289,11 +291,11 @@ namespace DynamicAllowListingLib.Logging
               operationName,
               documentId ?? "N/A",
               startTime,
-              stopwatch.Elapsed,
+              elapsed,
               "Exception",
               false);
 
-          _logger.LogDatabaseDependencyFailed(ex, operationName, databaseName, documentId ?? "N/A", stopwatch.ElapsedMilliseconds);
+          _logger.LogDatabaseDependencyFailed(ex, operationName, databaseName, documentId ?? "N/A", elapsedMs);
 
           throw;
         }
@@ -310,6 +312,11 @@ namespace DynamicAllowListingLib.Logging
         ["ResourceId"] = resourceInfo?.ResourceId ?? "N/A",
         ["ResourceName"] = resourceInfo?.ResourceName ?? "N/A"
       }) ?? new NoOpOperationTracker();
+    }
+
+    private long GetElapsedMilliseconds(long startTimestamp)
+    {
+      return (long)_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds;
     }
 
     private Dictionary<string, object> BuildOperationContext(

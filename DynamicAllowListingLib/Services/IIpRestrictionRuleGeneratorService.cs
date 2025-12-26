@@ -28,9 +28,6 @@ namespace DynamicAllowListingLib.Services
       List<string> subnetIdsToGenerateRulesFrom,
       List<string> allSubnetIds)
     {
-      var stopwatch = Stopwatch.StartNew();
-      _logger.LogMethodStart(nameof(GenerateIpRestrictionRules));
-
       var generatedIpRules = new HashSet<IpSecurityRestrictionRule>();
       try
       {
@@ -71,12 +68,9 @@ namespace DynamicAllowListingLib.Services
       }
       catch (Exception ex)
       {
-        stopwatch.Stop();
-        _logger.LogGenerateRulesException(ex, stopwatch.ElapsedMilliseconds);
+        _logger.LogGenerateRulesException(ex);
       }
-
-      stopwatch.Stop();
-      _logger.LogTotalRulesGenerated(generatedIpRules.Count, stopwatch.ElapsedMilliseconds);
+      _logger.LogTotalRulesGenerated(generatedIpRules.Count);
 
       return generatedIpRules;
     }
@@ -89,8 +83,6 @@ namespace DynamicAllowListingLib.Services
     /// <returns></returns>
     internal HashSet<IpSecurityRestrictionRule> GenerateIpRulesBySubnetNamingConvention(List<IAzureResource> existingResources, List<string> allSubnetIds)
     {
-      var stopwatch = Stopwatch.StartNew();
-      _logger.LogMethodStart(nameof(GenerateIpRulesBySubnetNamingConvention));
 
       var generatedIpRules = new HashSet<IpSecurityRestrictionRule>();
 
@@ -119,16 +111,13 @@ namespace DynamicAllowListingLib.Services
 
           _logger.LogGeneratedVnetRule(subnetId.Key, subnetId.Value);
         }
-
-        stopwatch.Stop();
-        _logger.LogNamingConventionRulesGenerated(generatedIpRules.Count, stopwatch.ElapsedMilliseconds);
+        _logger.LogNamingConventionRulesGenerated(generatedIpRules.Count);
 
         return generatedIpRules;
       }
       catch (Exception ex)
       {
-        stopwatch.Stop();
-        _logger.LogNamingConventionException(ex, stopwatch.ElapsedMilliseconds);
+        _logger.LogNamingConventionException(ex);
         throw; // Re-throw the exception after logging it
       }
     }
@@ -136,7 +125,6 @@ namespace DynamicAllowListingLib.Services
     internal List<KeyValuePair<string, string>> FindIntersectedSubnetIds(List<IAzureResource> existingResources,
       List<string> allSubnetIds)
     {
-      var stopwatch = Stopwatch.StartNew();
       _logger.LogMethodStart(nameof(FindIntersectedSubnetIds));
 
       var intersectedSubnetIds = new List<KeyValuePair<string, string>>();
@@ -172,25 +160,21 @@ namespace DynamicAllowListingLib.Services
              x.Value                  // subnetId
            )).ToList();
 
-        stopwatch.Stop();
-
         // Log the found intersected subnet IDs
         if (intersectedSubnetIds.Any())
         {
           _logger.LogFoundIntersectedSubnetIds(
             string.Join(", ", intersectedSubnetIds.Select(id => id.Value)),
-            intersectedSubnetIds.Count,
-            stopwatch.ElapsedMilliseconds);
+            intersectedSubnetIds.Count);
         }
         else
         {
-          _logger.LogNoIntersectedSubnetIdsFound(stopwatch.ElapsedMilliseconds);
+          _logger.LogNoIntersectedSubnetIdsFound();
         }
       }
       catch (Exception ex)
       {
-        stopwatch.Stop();
-        _logger.LogFindIntersectedSubnetIdsException(ex, stopwatch.ElapsedMilliseconds);
+        _logger.LogFindIntersectedSubnetIdsException(ex);
         throw; // Re-throw the exception after logging it
       }
 
@@ -251,20 +235,18 @@ namespace DynamicAllowListingLib.Services
     [LoggerMessage(
         EventId = 5014,
         Level = LogLevel.Error,
-        Message = "Exception occurred in generating IP restriction rules | Duration: {DurationMs}ms")]
+        Message = "Exception occurred in generating IP restriction rules")]
     public static partial void LogGenerateRulesException(
         this ILogger logger,
-        Exception exception,
-        long durationMs);
+        Exception exception);
 
     [LoggerMessage(
         EventId = 5015,
         Level = LogLevel.Information,
-        Message = "Total IP restriction rules generated: {RuleCount} | Duration: {DurationMs}ms")]
+        Message = "Total IP restriction rules generated: {RuleCount}")]
     public static partial void LogTotalRulesGenerated(
         this ILogger logger,
-        int ruleCount,
-        long durationMs);
+        int ruleCount);
 
     // ============================================================
     // GenerateIpRulesBySubnetNamingConvention (EventIds 5030-5049)
@@ -294,20 +276,18 @@ namespace DynamicAllowListingLib.Services
     [LoggerMessage(
         EventId = 5033,
         Level = LogLevel.Information,
-        Message = "Successfully generated {RuleCount} IP rules based on subnet naming convention | Duration: {DurationMs}ms")]
+        Message = "Successfully generated {RuleCount} IP rules based on subnet naming convention")]
     public static partial void LogNamingConventionRulesGenerated(
         this ILogger logger,
-        int ruleCount,
-        long durationMs);
+        int ruleCount);
 
     [LoggerMessage(
         EventId = 5034,
         Level = LogLevel.Error,
-        Message = "Exception occurred in GenerateIpRulesBySubnetNamingConvention | Duration: {DurationMs}ms")]
+        Message = "Exception occurred in GenerateIpRulesBySubnetNamingConvention")]
     public static partial void LogNamingConventionException(
         this ILogger logger,
-        Exception exception,
-        long durationMs);
+        Exception exception);
 
     // ============================================================
     // FindIntersectedSubnetIds (EventIds 5050-5069)
@@ -330,28 +310,25 @@ namespace DynamicAllowListingLib.Services
     [LoggerMessage(
         EventId = 5052,
         Level = LogLevel.Information,
-        Message = "Found intersected subnet IDs: {SubnetIds} | Count: {Count} | Duration: {DurationMs}ms")]
+        Message = "Found intersected subnet IDs: {SubnetIds} | Count: {Count}")]
     public static partial void LogFoundIntersectedSubnetIds(
         this ILogger logger,
         string subnetIds,
-        int count,
-        long durationMs);
+        int count);
 
     [LoggerMessage(
         EventId = 5053,
         Level = LogLevel.Information,
-        Message = "No intersected subnet IDs found | Duration: {DurationMs}ms")]
+        Message = "No intersected subnet IDs found")]
     public static partial void LogNoIntersectedSubnetIdsFound(
-        this ILogger logger,
-        long durationMs);
+        this ILogger logger);
 
     [LoggerMessage(
         EventId = 5054,
         Level = LogLevel.Error,
-        Message = "Exception occurred in FindIntersectedSubnetIds | Duration: {DurationMs}ms")]
+        Message = "Exception occurred in FindIntersectedSubnetIds")]
     public static partial void LogFindIntersectedSubnetIdsException(
         this ILogger logger,
-        Exception exception,
-        long durationMs);
+        Exception exception);
   }
 }

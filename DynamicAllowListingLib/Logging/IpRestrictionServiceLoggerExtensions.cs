@@ -27,22 +27,20 @@ namespace DynamicAllowListingLib.Logging
     [LoggerMessage(
         EventId = 6001,
         Level = LogLevel.Information,
-        Message = "Completed method: {MethodName} | Duration: {DurationMs}ms | Success: {Success}")]
+        Message = "Completed method: {MethodName} | Success: {Success}")]
     public static partial void LogMethodComplete(
         this ILogger logger,
         string methodName,
-        long durationMs,
         bool success);
 
     [LoggerMessage(
         EventId = 6002,
         Level = LogLevel.Error,
-        Message = "Exception in method: {MethodName} | Duration: {DurationMs}ms")]
+        Message = "Exception in method: {MethodName}s")]
     public static partial void LogMethodException(
         this ILogger logger,
         Exception exception,
-        string methodName,
-        long durationMs);
+        string methodName);
 
     [LoggerMessage(
         EventId = 6003,
@@ -88,12 +86,11 @@ namespace DynamicAllowListingLib.Logging
     [LoggerMessage(
         EventId = 6024,
         Level = LogLevel.Information,
-        Message = "Dependency configs lookup completed | ServiceTag: {ServiceTagName} | ConfigsFound: {ConfigCount} | Duration: {DurationMs}ms")]
+        Message = "Dependency configs lookup completed | ServiceTag: {ServiceTagName} | ConfigsFound: {ConfigCount}")]
     public static partial void LogDependencyConfigsLookupComplete(
         this ILogger logger,
         string serviceTagName,
-        int configCount,
-        long durationMs);
+        int configCount);
 
     // ============================================================
     // RemoveInvalidResourceConfigs (EventIds 6040-6059)
@@ -137,12 +134,11 @@ namespace DynamicAllowListingLib.Logging
     [LoggerMessage(
         EventId = 6044,
         Level = LogLevel.Information,
-        Message = "Config validation completed | ValidConfigs: {ValidCount} | InvalidConfigs: {InvalidCount} | Duration: {DurationMs}ms")]
+        Message = "Config validation completed | ValidConfigs: {ValidCount} | InvalidConfigs: {InvalidCount}")]
     public static partial void LogConfigValidationComplete(
         this ILogger logger,
         int validCount,
-        int invalidCount,
-        long durationMs);
+        int invalidCount);
 
     [LoggerMessage(
         EventId = 6045,
@@ -169,11 +165,10 @@ namespace DynamicAllowListingLib.Logging
     [LoggerMessage(
         EventId = 6061,
         Level = LogLevel.Information,
-        Message = "Removed resource IDs from database | ResourceIds: {ResourceIds} | Duration: {DurationMs}ms")]
+        Message = "Removed resource IDs from database | ResourceIds: {ResourceIds}")]
     public static partial void LogRemovedResourceIdsFromDb(
         this ILogger logger,
-        string resourceIds,
-        long durationMs);
+        string resourceIds);
 
     [LoggerMessage(
         EventId = 6062,
@@ -256,12 +251,11 @@ namespace DynamicAllowListingLib.Logging
     [LoggerMessage(
         EventId = 6101,
         Level = LogLevel.Information,
-        Message = "Resource existence check completed | ExistingCount: {ExistingCount} | NonexistentCount: {NonexistentCount} | Duration: {DurationMs}ms")]
+        Message = "Resource existence check completed | ExistingCount: {ExistingCount} | NonexistentCount: {NonexistentCount}")]
     public static partial void LogResourceExistenceCheckComplete(
         this ILogger logger,
         int existingCount,
-        int nonexistentCount,
-        long durationMs);
+        int nonexistentCount);
 
     [LoggerMessage(
         EventId = 6102,
@@ -335,11 +329,10 @@ namespace DynamicAllowListingLib.Logging
     [LoggerMessage(
         EventId = 6145,
         Level = LogLevel.Information,
-        Message = "GetValidDependencyConfigs completed | TotalConfigs: {TotalConfigs} | Duration: {DurationMs}ms")]
+        Message = "GetValidDependencyConfigs completed | TotalConfigs: {TotalConfigs}")]
     public static partial void LogGetValidDependencyConfigsComplete(
         this ILogger logger,
-        int totalConfigs,
-        long durationMs);
+        int totalConfigs);
 
     // ============================================================
     // Deleted Service Tag Operations (EventIds 6160-6179)
@@ -389,11 +382,10 @@ namespace DynamicAllowListingLib.Logging
     [LoggerMessage(
         EventId = 6165,
         Level = LogLevel.Information,
-        Message = "RemoveDeletedServiceTagsFromConfig completed | ModifiedConfigCount: {ModifiedConfigCount} | Duration: {DurationMs}ms")]
+        Message = "RemoveDeletedServiceTagsFromConfig completed | ModifiedConfigCount: {ModifiedConfigCount}")]
     public static partial void LogRemoveDeletedServiceTagsComplete(
         this ILogger logger,
-        int modifiedConfigCount,
-        long durationMs);
+        int modifiedConfigCount);
 
     [LoggerMessage(
         EventId = 6166,

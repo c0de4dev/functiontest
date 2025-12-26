@@ -1,22 +1,23 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 
 namespace DynamicAllowListingLib.Logging
 {
   public class PerformanceLogger
   {
     private readonly ILogger _logger;
+    private readonly TimeProvider _timeProvider;
 
-    public PerformanceLogger(ILogger logger)
+    public PerformanceLogger(ILogger logger, TimeProvider? timeProvider = null)
     {
       _logger = logger;
+      _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public IDisposable TrackPerformance(string operationName, Dictionary<string, object>? properties = null)
     {
-      return new PerformanceTracker(_logger, operationName, properties);
+      return new PerformanceTracker(_logger, operationName, properties, _timeProvider);
     }
 
     private class PerformanceTracker : IDisposable
@@ -24,25 +25,33 @@ namespace DynamicAllowListingLib.Logging
       private readonly ILogger _logger;
       private readonly string _operationName;
       private readonly Dictionary<string, object>? _properties;
-      private readonly Stopwatch _stopwatch;
+      private readonly TimeProvider _timeProvider;
+      private readonly long _startTimestamp;
 
-      public PerformanceTracker(ILogger logger, string operationName, Dictionary<string, object>? properties)
+      public PerformanceTracker(
+          ILogger logger,
+          string operationName,
+          Dictionary<string, object>? properties,
+          TimeProvider timeProvider)
       {
         _logger = logger;
         _operationName = operationName;
         _properties = properties;
-        _stopwatch = Stopwatch.StartNew();
+        _timeProvider = timeProvider;
+        _startTimestamp = timeProvider.GetTimestamp();
       }
 
       public void Dispose()
       {
-        _stopwatch.Stop();
+        var elapsed = _timeProvider.GetElapsedTime(_startTimestamp);
+        var elapsedMs = (long)elapsed.TotalMilliseconds;
+        var elapsedTicks = elapsed.Ticks;
 
         var logProperties = new Dictionary<string, object>
         {
           ["Operation"] = _operationName,
-          ["DurationMs"] = _stopwatch.ElapsedMilliseconds,
-          ["DurationTicks"] = _stopwatch.ElapsedTicks,
+          ["DurationMs"] = elapsedMs,
+          ["DurationTicks"] = elapsedTicks,
           ["CorrelationId"] = CorrelationContext.CorrelationId
         };
 
@@ -56,7 +65,7 @@ namespace DynamicAllowListingLib.Logging
 
         using (_logger.BeginScope(logProperties))
         {
-          var level = _stopwatch.ElapsedMilliseconds switch
+          var level = elapsedMs switch
           {
             > 10000 => LogLevel.Error,
             > 5000 => LogLevel.Warning,
@@ -67,7 +76,7 @@ namespace DynamicAllowListingLib.Logging
               level,
               "Performance: {Operation} completed in {DurationMs}ms",
               _operationName,
-              _stopwatch.ElapsedMilliseconds);
+              elapsedMs);
         }
       }
     }

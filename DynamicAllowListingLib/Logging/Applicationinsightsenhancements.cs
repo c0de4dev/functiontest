@@ -88,6 +88,7 @@ namespace DynamicAllowListingLib.Logging
   {
     private readonly TelemetryClient _telemetryClient;
     private readonly ILogger<ApplicationInsightsTelemetryService> _logger;
+    private readonly TimeProvider _timeProvider;
 
     // Metric names for common operations
     public static class MetricNames
@@ -119,10 +120,12 @@ namespace DynamicAllowListingLib.Logging
 
     public ApplicationInsightsTelemetryService(
         TelemetryClient telemetryClient,
-        ILogger<ApplicationInsightsTelemetryService> logger)
+        ILogger<ApplicationInsightsTelemetryService> logger,
+        TimeProvider? timeProvider = null)
     {
       _telemetryClient = telemetryClient ?? throw new ArgumentNullException(nameof(telemetryClient));
       _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+      _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <inheritdoc />
@@ -219,7 +222,7 @@ namespace DynamicAllowListingLib.Logging
     /// <inheritdoc />
     public IOperationTracker StartOperation(string operationName, IDictionary<string, string>? properties = null)
     {
-      var tracker = new OperationTracker(this, operationName, properties);
+      var tracker = new OperationTracker(this, operationName, properties, _timeProvider);
 
       TrackEvent(EventNames.ServiceOperationStarted, new Dictionary<string, string>
       {
@@ -254,18 +257,24 @@ namespace DynamicAllowListingLib.Logging
     {
       private readonly ApplicationInsightsTelemetryService _telemetryService;
       private readonly string _operationName;
-      private readonly Stopwatch _stopwatch;
+      private readonly TimeProvider _timeProvider;
+      private readonly long _startTimestamp;
       private readonly Dictionary<string, string> _properties;
       private readonly Dictionary<string, double> _metrics;
       private bool _success = true;
       private string? _errorMessage;
       private bool _disposed;
 
-      public OperationTracker(ApplicationInsightsTelemetryService telemetryService, string operationName, IDictionary<string, string>? initialProperties = null)
+      public OperationTracker(
+          ApplicationInsightsTelemetryService telemetryService,
+          string operationName,
+          IDictionary<string, string>? initialProperties,
+          TimeProvider timeProvider)
       {
         _telemetryService = telemetryService;
         _operationName = operationName;
-        _stopwatch = Stopwatch.StartNew();
+        _timeProvider = timeProvider;
+        _startTimestamp = timeProvider.GetTimestamp();
         _properties = new Dictionary<string, string>
         {
           ["OperationName"] = operationName
@@ -283,7 +292,7 @@ namespace DynamicAllowListingLib.Logging
 
       public DateTimeOffset StartTime { get; } = DateTimeOffset.UtcNow;
 
-      public TimeSpan Elapsed => _stopwatch.Elapsed;
+      public TimeSpan Elapsed => _timeProvider.GetElapsedTime(_startTimestamp);
 
       public void SetSuccess()
       {
@@ -312,22 +321,24 @@ namespace DynamicAllowListingLib.Logging
         if (_disposed) return;
         _disposed = true;
 
-        _stopwatch.Stop();
+        var elapsed = _timeProvider.GetElapsedTime(_startTimestamp);
+        var elapsedMs = (long)elapsed.TotalMilliseconds;
+
         _properties["Success"] = _success.ToString();
-        _properties["DurationMs"] = _stopwatch.ElapsedMilliseconds.ToString();
+        _properties["DurationMs"] = elapsedMs.ToString();
 
         if (!string.IsNullOrEmpty(_errorMessage))
         {
           _properties["ErrorMessage"] = _errorMessage;
         }
 
-        _metrics[MetricNames.OperationDuration] = _stopwatch.ElapsedMilliseconds;
+        _metrics[MetricNames.OperationDuration] = elapsedMs;
 
         var eventName = _success ? EventNames.ServiceOperationCompleted : EventNames.ServiceOperationFailed;
         _telemetryService.TrackEvent(eventName, _properties, _metrics);
 
         // Also track duration as a metric
-        _telemetryService.TrackMetric(MetricNames.OperationDuration, _stopwatch.ElapsedMilliseconds,
+        _telemetryService.TrackMetric(MetricNames.OperationDuration, elapsedMs,
             new Dictionary<string, string>
             {
               ["OperationName"] = _operationName,

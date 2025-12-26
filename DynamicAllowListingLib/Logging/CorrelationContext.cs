@@ -341,7 +341,8 @@ namespace DynamicAllowListingLib.Logging
     private readonly ILogger _logger;
     private readonly string _operationName;
     private readonly string _correlationId;
-    private readonly Stopwatch _stopwatch;
+    private readonly TimeProvider _timeProvider;
+    private readonly long _startTimestamp;
     private readonly IDisposable? _loggerScope;
     private bool _disposed;
     private bool _success = true;
@@ -349,12 +350,14 @@ namespace DynamicAllowListingLib.Logging
     public CorrelationScope(
         ILogger logger,
         string operationName,
-        IDictionary<string, object>? additionalProperties = null)
+        IDictionary<string, object>? additionalProperties = null,
+        TimeProvider? timeProvider = null)
     {
       _logger = logger;
       _operationName = operationName;
       _correlationId = CorrelationContext.CorrelationId;
-      _stopwatch = Stopwatch.StartNew();
+      _timeProvider = timeProvider ?? TimeProvider.System;
+      _startTimestamp = _timeProvider.GetTimestamp();
       _loggerScope = logger.BeginCorrelationScope(operationName, additionalProperties);
 
       _logger.LogCorrelationStarted(operationName, _correlationId);
@@ -373,11 +376,11 @@ namespace DynamicAllowListingLib.Logging
       if (_disposed) return;
       _disposed = true;
 
-      _stopwatch.Stop();
+      var elapsedMs = (long)_timeProvider.GetElapsedTime(_startTimestamp).TotalMilliseconds;
       _logger.LogCorrelationCompleted(
           _operationName,
           _correlationId,
-          _stopwatch.ElapsedMilliseconds,
+          elapsedMs,
           _success);
 
       _loggerScope?.Dispose();

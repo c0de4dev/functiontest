@@ -30,7 +30,6 @@ namespace DynamicAllowListingLib.Services
 
     public async Task<HashSet<ResourceDependencyInformation>> GetValidDependencyConfigs(HashSet<ServiceTag> updatedServiceTagModels)
     {
-      var stopwatch = Stopwatch.StartNew();
       _logger.LogMethodStart(nameof(GetValidDependencyConfigs));
 
       var modifiedDpConfiglst = new List<ResourceDependencyInformation>();
@@ -54,8 +53,7 @@ namespace DynamicAllowListingLib.Services
           if (!dependencyConfigList.Any())
           {
             _logger.LogNoRelatedDependencyConfigsFound();
-            stopwatch.Stop();
-            _logger.LogGetValidDependencyConfigsComplete(0, stopwatch.ElapsedMilliseconds);
+            _logger.LogGetValidDependencyConfigsComplete(0);
             return configList;
           }
 
@@ -85,14 +83,12 @@ namespace DynamicAllowListingLib.Services
             _logger.LogUpdatingResources(updatedDpConfigList.Count, resourceNames);
           }
 
-          stopwatch.Stop();
-          _logger.LogGetValidDependencyConfigsComplete(modifiedDpConfiglst.Count, stopwatch.ElapsedMilliseconds);
+          _logger.LogGetValidDependencyConfigsComplete(modifiedDpConfiglst.Count);
         }
       }
       catch (Exception ex)
       {
-        stopwatch.Stop();
-        _logger.LogMethodException(ex, nameof(GetValidDependencyConfigs), stopwatch.ElapsedMilliseconds);
+        _logger.LogMethodException(ex, nameof(GetValidDependencyConfigs));
       }
 
       return new HashSet<ResourceDependencyInformation>(modifiedDpConfiglst);
@@ -100,7 +96,6 @@ namespace DynamicAllowListingLib.Services
 
     public List<ServiceTag> GetDeletedServiceTags(HashSet<ServiceTag> updatedServiceTagModels)
     {
-      var stopwatch = Stopwatch.StartNew();
       _logger.LogMethodStart(nameof(GetDeletedServiceTags));
 
       // Null check for safety
@@ -117,7 +112,6 @@ namespace DynamicAllowListingLib.Services
           .Where(x => x.IsDeleted == true)
           .ToList();
 
-      stopwatch.Stop();
 
       // Log details of deleted tags
       if (deletedServiceTags.Any())
@@ -130,7 +124,7 @@ namespace DynamicAllowListingLib.Services
         _logger.LogNoDeletedServiceTagsFound();
       }
 
-      _logger.LogMethodComplete(nameof(GetDeletedServiceTags), stopwatch.ElapsedMilliseconds, true);
+      _logger.LogMethodComplete(nameof(GetDeletedServiceTags), true);
 
       return deletedServiceTags;
     }
@@ -139,7 +133,6 @@ namespace DynamicAllowListingLib.Services
         List<ServiceTag> deletedServiceTags,
         HashSet<ResourceDependencyInformation> dependencyConfigList)
     {
-      var stopwatch = Stopwatch.StartNew();
       _logger.LogMethodStart(nameof(RemoveDeletedServiceTagsFromConfig));
 
       // Check for empty or null inputs
@@ -192,10 +185,8 @@ namespace DynamicAllowListingLib.Services
             }
           }
         }
-
-        stopwatch.Stop();
-        _logger.LogRemoveDeletedServiceTagsComplete(modifiedCount, stopwatch.ElapsedMilliseconds);
-        _logger.LogMethodComplete(nameof(RemoveDeletedServiceTagsFromConfig), stopwatch.ElapsedMilliseconds, true);
+        _logger.LogRemoveDeletedServiceTagsComplete(modifiedCount);
+        _logger.LogMethodComplete(nameof(RemoveDeletedServiceTagsFromConfig), true);
       }
 
       return modifiedConfigs;

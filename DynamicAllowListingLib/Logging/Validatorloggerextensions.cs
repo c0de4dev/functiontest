@@ -116,11 +116,6 @@ namespace DynamicAllowListingLib.Logging
         this ILogger logger,
         string subscriptionList);
 
-    [LoggerMessage(
-        EventId = 11032,
-        Level = LogLevel.Error,
-        Message = "No ServiceTags are provided in the settings.")]
-    public static partial void LogNoServiceTagsProvided(this ILogger logger);
 
     [LoggerMessage(
         EventId = 11033,

@@ -783,14 +783,6 @@ namespace DynamicAllowListingLib.Logging
     // ============================================================
 
     [LoggerMessage(
-        EventId = 10350,
-        Level = LogLevel.Information,
-        Message = "No service tags provided for SubscriptionID: {SubscriptionId}. Returning an empty rule set.")]
-    public static partial void LogNoServiceTagsProvided(
-        this ILogger logger,
-        string subscriptionId);
-
-    [LoggerMessage(
         EventId = 10351,
         Level = LogLevel.Information,
         Message = "Generating security restriction rules for Subscription ID: {SubscriptionId} with Service Tags: {ServiceTags}")]

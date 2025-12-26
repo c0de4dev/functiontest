@@ -23,7 +23,7 @@ namespace DynamicAllowListingLib.Logging
         Dictionary<string, object>? tags = null)
     {
       using var activity = _activitySource.StartActivity(operationName, ActivityKind.Internal);
-      var stopwatch = Stopwatch.StartNew();
+      var startTimestamp = TimeProvider.System.GetTimestamp();
 
       var contextTags = new Dictionary<string, object>
       {
@@ -48,35 +48,35 @@ namespace DynamicAllowListingLib.Logging
 
           var result = await operation();
 
-          stopwatch.Stop();
+          var elapsedMs = GetElapsedMilliseconds(startTimestamp);
           activity?.SetTag("success", true);
-          activity?.SetTag("duration_ms", stopwatch.ElapsedMilliseconds);
+          activity?.SetTag("duration_ms", elapsedMs);
 
-          if (stopwatch.ElapsedMilliseconds > 5000)
+          if (elapsedMs > 5000)
           {
-            _logger.LogSlowOperation(operationName, stopwatch.ElapsedMilliseconds, 5000);
+            _logger.LogSlowOperation(operationName, elapsedMs, 5000);
           }
 
           _logger.LogInformation(
               "Completed operation {OperationName} in {DurationMs}ms",
               operationName,
-              stopwatch.ElapsedMilliseconds);
+              elapsedMs);
 
           return result;
         }
       }
       catch (Exception ex)
       {
-        stopwatch.Stop();
+        var elapsedMs = GetElapsedMilliseconds(startTimestamp);
         activity?.SetTag("success", false);
         activity?.SetTag("error", ex.Message);
-        activity?.SetTag("duration_ms", stopwatch.ElapsedMilliseconds);
+        activity?.SetTag("duration_ms", elapsedMs);
 
         _logger.LogError(
             ex,
             "Operation {OperationName} failed after {DurationMs}ms",
             operationName,
-            stopwatch.ElapsedMilliseconds);
+            elapsedMs);
 
         throw;
       }
@@ -88,7 +88,7 @@ namespace DynamicAllowListingLib.Logging
         Dictionary<string, object>? tags = null)
     {
       using var activity = _activitySource.StartActivity(operationName, ActivityKind.Internal);
-      var stopwatch = Stopwatch.StartNew();
+      var startTimestamp = TimeProvider.System.GetTimestamp();
 
       var contextTags = new Dictionary<string, object>
       {
@@ -113,33 +113,38 @@ namespace DynamicAllowListingLib.Logging
 
           var result = operation();
 
-          stopwatch.Stop();
+          var elapsedMs = GetElapsedMilliseconds(startTimestamp);
           activity?.SetTag("success", true);
-          activity?.SetTag("duration_ms", stopwatch.ElapsedMilliseconds);
+          activity?.SetTag("duration_ms", elapsedMs);
 
           _logger.LogInformation(
               "Completed operation {OperationName} in {DurationMs}ms",
               operationName,
-              stopwatch.ElapsedMilliseconds);
+              elapsedMs);
 
           return result;
         }
       }
       catch (Exception ex)
       {
-        stopwatch.Stop();
+        var elapsedMs = GetElapsedMilliseconds(startTimestamp);
         activity?.SetTag("success", false);
         activity?.SetTag("error", ex.Message);
-        activity?.SetTag("duration_ms", stopwatch.ElapsedMilliseconds);
+        activity?.SetTag("duration_ms", elapsedMs);
 
         _logger.LogError(
             ex,
             "Operation {OperationName} failed after {DurationMs}ms",
             operationName,
-            stopwatch.ElapsedMilliseconds);
+            elapsedMs);
 
         throw;
       }
+    }
+
+    private static long GetElapsedMilliseconds(long startTimestamp)
+    {
+      return (long)TimeProvider.System.GetElapsedTime(startTimestamp).TotalMilliseconds;
     }
   }
 }

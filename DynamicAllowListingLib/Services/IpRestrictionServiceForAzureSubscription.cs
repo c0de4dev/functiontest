@@ -40,7 +40,6 @@ namespace DynamicAllowListingLib.Services
     public async Task<HashSet<ResourceDependencyInformation>> GetValidDependencyConfigs(
         HashSet<AzureSubscription> updatedAzureSubscriptionsModel)
     {
-      var stopwatch = Stopwatch.StartNew();
       var subscriptionCount = updatedAzureSubscriptionsModel?.Count ?? 0;
 
       _logger.LogMethodStart(nameof(GetValidDependencyConfigs));
@@ -52,8 +51,7 @@ namespace DynamicAllowListingLib.Services
       if (updatedAzureSubscriptionsModel == null || !updatedAzureSubscriptionsModel.Any())
       {
         _logger.LogAzureSubscriptionsEmpty();
-        stopwatch.Stop();
-        _logger.LogMethodComplete(nameof(GetValidDependencyConfigs), stopwatch.ElapsedMilliseconds, true);
+        _logger.LogMethodComplete(nameof(GetValidDependencyConfigs), true);
         return validConfigs;
       }
 
@@ -66,8 +64,7 @@ namespace DynamicAllowListingLib.Services
           if (!relatedServiceTags.Any())
           {
             _logger.LogNoRelatedServiceTagsFound();
-            stopwatch.Stop();
-            _logger.LogMethodComplete(nameof(GetValidDependencyConfigs), stopwatch.ElapsedMilliseconds, true);
+            _logger.LogMethodComplete(nameof(GetValidDependencyConfigs), true);
             return validConfigs;
           }
 
@@ -76,8 +73,7 @@ namespace DynamicAllowListingLib.Services
           if (!dependencyConfigList.Any())
           {
             _logger.LogNoDependencyConfigsFound();
-            stopwatch.Stop();
-            _logger.LogMethodComplete(nameof(GetValidDependencyConfigs), stopwatch.ElapsedMilliseconds, true);
+            _logger.LogMethodComplete(nameof(GetValidDependencyConfigs), true);
             return validConfigs;
           }
 
@@ -86,8 +82,7 @@ namespace DynamicAllowListingLib.Services
           if (!cleanDpList.Any())
           {
             _logger.LogAllConfigsInvalid();
-            stopwatch.Stop();
-            _logger.LogMethodComplete(nameof(GetValidDependencyConfigs), stopwatch.ElapsedMilliseconds, true);
+            _logger.LogMethodComplete(nameof(GetValidDependencyConfigs), true);
             return validConfigs;
           }
 
@@ -97,15 +92,12 @@ namespace DynamicAllowListingLib.Services
 
           validConfigs = cleanDpList;
         }
-
-        stopwatch.Stop();
-        _logger.LogMethodComplete(nameof(GetValidDependencyConfigs), stopwatch.ElapsedMilliseconds, true);
+        _logger.LogMethodComplete(nameof(GetValidDependencyConfigs), true);
       }
       catch (Exception ex)
       {
-        stopwatch.Stop();
         _logger.LogGetValidDependencyConfigsFailed(ex);
-        _logger.LogMethodException(ex, nameof(GetValidDependencyConfigs), stopwatch.ElapsedMilliseconds);
+        _logger.LogMethodException(ex, nameof(GetValidDependencyConfigs));
         return validConfigs;
       }
 
@@ -119,7 +111,6 @@ namespace DynamicAllowListingLib.Services
     /// <returns>A list of service tags that reference the changed subscriptions.</returns>
     public async Task<List<ServiceTag>> FindRelatedServiceTags(HashSet<AzureSubscription> changedModelList)
     {
-      var stopwatch = Stopwatch.StartNew();
       var subscriptionCount = changedModelList?.Count ?? 0;
 
       _logger.LogMethodStart(nameof(FindRelatedServiceTags));
@@ -129,8 +120,7 @@ namespace DynamicAllowListingLib.Services
       if (changedModelList == null || !changedModelList.Any())
       {
         _logger.LogAzureSubscriptionModelEmpty();
-        stopwatch.Stop();
-        _logger.LogMethodComplete(nameof(FindRelatedServiceTags), stopwatch.ElapsedMilliseconds, true);
+        _logger.LogMethodComplete(nameof(FindRelatedServiceTags), true);
         return new List<ServiceTag>();
       }
 
@@ -154,8 +144,7 @@ namespace DynamicAllowListingLib.Services
           if (allServiceTags == null || !allServiceTags.Any())
           {
             _logger.LogNoServiceTagsInDatabase();
-            stopwatch.Stop();
-            _logger.LogMethodComplete(nameof(FindRelatedServiceTags), stopwatch.ElapsedMilliseconds, true);
+            _logger.LogMethodComplete(nameof(FindRelatedServiceTags), true);
             return new List<ServiceTag>();
           }
 
@@ -167,9 +156,6 @@ namespace DynamicAllowListingLib.Services
                            .Intersect(subscriptionNames)
                            .Any())
               .ToList();
-
-          stopwatch.Stop();
-
           // Log the results of the filtering process
           if (!relatedServiceTags.Any())
           {
@@ -181,15 +167,14 @@ namespace DynamicAllowListingLib.Services
             _logger.LogRelatedServiceTagsFound(relatedServiceTags.Count, tagNames);
           }
 
-          _logger.LogMethodComplete(nameof(FindRelatedServiceTags), stopwatch.ElapsedMilliseconds, true);
+          _logger.LogMethodComplete(nameof(FindRelatedServiceTags), true);
           return relatedServiceTags;
         }
       }
       catch (Exception ex)
       {
-        stopwatch.Stop();
         _logger.LogFindRelatedServiceTagsFailed(ex);
-        _logger.LogMethodException(ex, nameof(FindRelatedServiceTags), stopwatch.ElapsedMilliseconds);
+        _logger.LogMethodException(ex, nameof(FindRelatedServiceTags));
         throw;
       }
     }

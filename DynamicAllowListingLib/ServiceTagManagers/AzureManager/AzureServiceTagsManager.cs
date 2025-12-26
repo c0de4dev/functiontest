@@ -237,7 +237,7 @@ namespace DynamicAllowListingLib.ServiceTagManagers.AzureManager
         */
         if (serviceTags == null || serviceTags.Length == 0)
         {
-          _logger.LogNoServiceTagsProvided(subscriptionId);
+          _logger.LogNoServiceTagsProvided();
           return Task.FromResult(secRules);
         }
 

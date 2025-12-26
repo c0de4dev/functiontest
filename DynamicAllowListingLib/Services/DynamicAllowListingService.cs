@@ -82,17 +82,17 @@ namespace DynamicAllowListingLib.Services
           var resultObject = await _persistenceManager.CreateOrReplaceItemInDb(resourceDependencyInformation);
 
           stopwatch.Stop();
-          _logger.LogDbUpdateComplete(resourceId, "CreateOrReplace", stopwatch.ElapsedMilliseconds);
-          _logger.LogServiceOperationComplete(nameof(UpdateDb), resourceId, stopwatch.ElapsedMilliseconds, true);
+          _logger.LogDbUpdateComplete(resourceId, "CreateOrReplace");
+          _logger.LogServiceOperationComplete(nameof(UpdateDb), resourceId, true);
 
-          LogSlowOperationIfNeeded(nameof(UpdateDb), stopwatch.ElapsedMilliseconds);
+          LogSlowOperationIfNeeded(nameof(UpdateDb));
 
           return resultObject;
         }
         catch (Exception ex)
         {
           stopwatch.Stop();
-          _logger.LogServiceException(ex, nameof(UpdateDb), resourceDependencyInformation, stopwatch.ElapsedMilliseconds);
+          _logger.LogServiceException(ex, nameof(UpdateDb), resourceDependencyInformation);
           throw;
         }
       }
@@ -174,13 +174,13 @@ namespace DynamicAllowListingLib.Services
           resultObject.Merge(azureResourceService.ResultObject);
 
           stopwatch.Stop();
-          _logger.LogServiceOperationComplete(nameof(UpdateUnmanagedResources), resourceId, stopwatch.ElapsedMilliseconds, true);
-          LogSlowOperationIfNeeded(nameof(UpdateUnmanagedResources), stopwatch.ElapsedMilliseconds);
+          _logger.LogServiceOperationComplete(nameof(UpdateUnmanagedResources), resourceId, true);
+          LogSlowOperationIfNeeded(nameof(UpdateUnmanagedResources));
         }
         catch (Exception ex)
         {
           stopwatch.Stop();
-          _logger.LogServiceException(ex, nameof(UpdateUnmanagedResources), resourceDependencyInformation, stopwatch.ElapsedMilliseconds);
+          _logger.LogServiceException(ex, nameof(UpdateUnmanagedResources), resourceDependencyInformation);
           resultObject.Errors.Add($"An unexpected error occurred: {ex.Message}");
         }
 
@@ -263,7 +263,7 @@ namespace DynamicAllowListingLib.Services
 
             stopwatch.Stop();
             _logger.LogServiceOperationComplete(nameof(OverwriteNetworkRestrictionRulesForMainResource),
-                resourceId, stopwatch.ElapsedMilliseconds, true);
+                resourceId, true);
             return resultObject;
           }
 
@@ -288,17 +288,17 @@ namespace DynamicAllowListingLib.Services
           resultObject.Merge(overwriteResult);
 
           stopwatch.Stop();
-          _logger.LogNetworkRestrictionOverwriteComplete(resourceId, stopwatch.ElapsedMilliseconds);
+          _logger.LogNetworkRestrictionOverwriteComplete(resourceId);
           _logger.LogServiceOperationComplete(nameof(OverwriteNetworkRestrictionRulesForMainResource),
-              resourceId, stopwatch.ElapsedMilliseconds, !resultObject.Errors.Any());
+              resourceId, !resultObject.Errors.Any());
 
-          LogSlowOperationIfNeeded(nameof(OverwriteNetworkRestrictionRulesForMainResource), stopwatch.ElapsedMilliseconds);
+          LogSlowOperationIfNeeded(nameof(OverwriteNetworkRestrictionRulesForMainResource));
         }
         catch (Exception ex)
         {
           stopwatch.Stop();
           _logger.LogServiceException(ex, nameof(OverwriteNetworkRestrictionRulesForMainResource),
-              resourceDependencyInformation, stopwatch.ElapsedMilliseconds);
+              resourceDependencyInformation);
           resultObject.Errors.Add($"An unexpected error occurred: {ex.Message}");
         }
 
@@ -350,13 +350,13 @@ namespace DynamicAllowListingLib.Services
 
           stopwatch.Stop();
           _logger.LogServiceOperationComplete(nameof(CheckProvisioningSucceeded),
-              resourceId, stopwatch.ElapsedMilliseconds, !resultObject.Errors.Any());
+              resourceId, !resultObject.Errors.Any());
         }
         catch (Exception ex)
         {
           stopwatch.Stop();
           _logger.LogServiceException(ex, nameof(CheckProvisioningSucceeded),
-              resourceDependencyInformation, stopwatch.ElapsedMilliseconds);
+              resourceDependencyInformation);
           resultObject.Errors.Add($"An unexpected error occurred: {ex.Message}");
         }
 
@@ -414,15 +414,15 @@ namespace DynamicAllowListingLib.Services
 
           stopwatch.Stop();
           _logger.LogServiceOperationComplete(nameof(GetOverwriteConfigsForAppServicePlanScale),
-              appServicePlanResourceId, stopwatch.ElapsedMilliseconds, true);
+              appServicePlanResourceId, true);
 
-          LogSlowOperationIfNeeded(nameof(GetOverwriteConfigsForAppServicePlanScale), stopwatch.ElapsedMilliseconds);
+          LogSlowOperationIfNeeded(nameof(GetOverwriteConfigsForAppServicePlanScale));
         }
         catch (Exception ex)
         {
           stopwatch.Stop();
           _logger.LogServiceOperationFailed(ex, nameof(GetOverwriteConfigsForAppServicePlanScale),
-              appServicePlanResourceId, stopwatch.ElapsedMilliseconds);
+              appServicePlanResourceId);
         }
 
         return configsToOverwrite;
@@ -465,13 +465,13 @@ namespace DynamicAllowListingLib.Services
 
           stopwatch.Stop();
           _logger.LogServiceOperationComplete(nameof(GetOverwriteConfigsWhenWebAppDeleted),
-              deletedWebAppResourceId, stopwatch.ElapsedMilliseconds, true);
+              deletedWebAppResourceId, true);
         }
         catch (Exception ex)
         {
           stopwatch.Stop();
           _logger.LogServiceOperationFailed(ex, nameof(GetOverwriteConfigsWhenWebAppDeleted),
-              deletedWebAppResourceId, stopwatch.ElapsedMilliseconds);
+              deletedWebAppResourceId);
         }
 
         return configsToOverwrite;
@@ -508,7 +508,7 @@ namespace DynamicAllowListingLib.Services
 
           stopwatch.Stop();
           _logger.LogServiceOperationComplete(nameof(GetOutboundOverwriteConfigs),
-              resourceId, stopwatch.ElapsedMilliseconds, true);
+              resourceId, true);
 
           _logger.LogInformation(
               "Retrieved {ConfigCount} configurations for outbound resources | ResourceId: {ResourceId}",
@@ -518,7 +518,7 @@ namespace DynamicAllowListingLib.Services
         {
           stopwatch.Stop();
           _logger.LogServiceException(ex, nameof(GetOutboundOverwriteConfigs),
-              resourceDependencyInformation, stopwatch.ElapsedMilliseconds);
+              resourceDependencyInformation);
         }
 
         return configsToBeOverwritten;

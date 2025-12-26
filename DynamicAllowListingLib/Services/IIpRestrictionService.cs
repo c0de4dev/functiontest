@@ -42,7 +42,6 @@ namespace DynamicAllowListingLib.Services
 
     public async Task<HashSet<ResourceDependencyInformation>> FindRelatedDependencyConfigs(List<ServiceTag> relatedServiceTags)
     {
-      var stopwatch = Stopwatch.StartNew();
       _logger.LogMethodStart(nameof(FindRelatedDependencyConfigs));
       _logger.LogFindingRelatedDependencyConfigs(relatedServiceTags?.Count ?? 0);
 
@@ -64,7 +63,6 @@ namespace DynamicAllowListingLib.Services
             dependencyConfigList = await FindDependencyConfigs(relatedServiceTags!);
           }
 
-          stopwatch.Stop();
 
           if (dependencyConfigList.Any())
           {
@@ -75,13 +73,12 @@ namespace DynamicAllowListingLib.Services
             _logger.LogNoNetworkRestrictionConfigsFound();
           }
 
-          _logger.LogMethodComplete(nameof(FindRelatedDependencyConfigs), stopwatch.ElapsedMilliseconds, true);
+          _logger.LogMethodComplete(nameof(FindRelatedDependencyConfigs), true);
         }
       }
       catch (Exception ex)
       {
-        stopwatch.Stop();
-        _logger.LogMethodException(ex, nameof(FindRelatedDependencyConfigs), stopwatch.ElapsedMilliseconds);
+        _logger.LogMethodException(ex, nameof(FindRelatedDependencyConfigs));
         throw;
       }
 
@@ -90,7 +87,6 @@ namespace DynamicAllowListingLib.Services
 
     public async Task<HashSet<ResourceDependencyInformation>> RemoveInvalidResourceConfigs(HashSet<ResourceDependencyInformation> dependencyConfigList)
     {
-      var stopwatch = Stopwatch.StartNew();
       var initialCount = dependencyConfigList?.Count ?? 0;
       _logger.LogMethodStart(nameof(RemoveInvalidResourceConfigs));
       _logger.LogStartingConfigValidation(initialCount);
@@ -155,17 +151,15 @@ namespace DynamicAllowListingLib.Services
           LogInvalidConfigsSummary("invalid", wrongFormattedIds!);
           LogInvalidConfigsSummary("nonexistent", nonexistentIds!);
 
-          stopwatch.Stop();
           var removedCount = initialCount - validConfigs.Count;
-          _logger.LogConfigValidationComplete(validConfigs.Count, removedCount, stopwatch.ElapsedMilliseconds);
+          _logger.LogConfigValidationComplete(validConfigs.Count, removedCount);
 
           return new HashSet<ResourceDependencyInformation>(validConfigs);
         }
       }
       catch (Exception ex)
       {
-        stopwatch.Stop();
-        _logger.LogMethodException(ex, nameof(RemoveInvalidResourceConfigs), stopwatch.ElapsedMilliseconds);
+        _logger.LogMethodException(ex, nameof(RemoveInvalidResourceConfigs));
         throw;
       }
     }
@@ -178,7 +172,6 @@ namespace DynamicAllowListingLib.Services
         return new List<string>();
       }
 
-      var stopwatch = Stopwatch.StartNew();
       var azureSubscriptionId = configs
           .First(x => !string.IsNullOrEmpty(x.RequestSubscriptionId))
           .RequestSubscriptionId;
@@ -200,11 +193,9 @@ namespace DynamicAllowListingLib.Services
 
       var nonexistentIds = resourceIdsToBeChecked.Except(existingResourceIds).ToList();
 
-      stopwatch.Stop();
       _logger.LogResourceExistenceCheckComplete(
           existingResourceIds.Count(),
-          nonexistentIds.Count,
-          stopwatch.ElapsedMilliseconds);
+          nonexistentIds.Count);
 
       return nonexistentIds!;
     }
@@ -222,7 +213,6 @@ namespace DynamicAllowListingLib.Services
 
     private async Task RemoveInvalidConfigsFromDb(params object[] args)
     {
-      var stopwatch = Stopwatch.StartNew();
       var invalidRecords = new List<string>();
 
       foreach (var invalidResourceIds in args)
@@ -250,11 +240,8 @@ namespace DynamicAllowListingLib.Services
           _logger.LogRemoveConfigFromDbFailed(ex, invalidResourceId);
         }
       }
-
-      stopwatch.Stop();
       _logger.LogRemovedResourceIdsFromDb(
-          string.Join(", ", distinctRecords),
-          stopwatch.ElapsedMilliseconds);
+          string.Join(", ", distinctRecords));
     }
 
     public async Task UpdateConfigsInDb(ResourceDependencyInformation config)
@@ -279,7 +266,6 @@ namespace DynamicAllowListingLib.Services
 
       foreach (var serviceTag in relatedServiceTags)
       {
-        var stopwatch = Stopwatch.StartNew();
         _logger.LogFindingConfigsForServiceTag(
             serviceTag.Id ?? "Unknown",
             serviceTag.Name ?? "Unknown");
@@ -290,12 +276,9 @@ namespace DynamicAllowListingLib.Services
         {
           dependencyConfigList.Add(dependencyInfo);
         }
-
-        stopwatch.Stop();
         _logger.LogDependencyConfigsLookupComplete(
             serviceTag.Name ?? "Unknown",
-            configsForTag.Count(),
-            stopwatch.ElapsedMilliseconds);
+            configsForTag.Count());
       }
 
       return dependencyConfigList;
