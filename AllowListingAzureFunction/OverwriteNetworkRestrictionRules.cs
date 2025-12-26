@@ -1,13 +1,13 @@
 using DynamicAllowListingLib;
+using DynamicAllowListingLib.Logging;
 using DynamicAllowListingLib.Services;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.ApplicationInsights.DataContracts;
-using Microsoft.ApplicationInsights;
 using static AllowListingAzureFunction.UpdateNetworkRestrictionsUsingConfig;
 using System.Collections.Generic;
+using AllowListingAzureFunction.Logging;
 
 namespace AllowListingAzureFunction
 {
@@ -16,117 +16,139 @@ namespace AllowListingAzureFunction
     public const string OverwriteNetworkRestrictionsActivityFunction = nameof(OverwriteNetworkRestrictionsActivityTrigger);
 
     private readonly IDynamicAllowListingService _dalService;
-    private readonly TelemetryClient _telemetryClient;
+    private readonly ICustomTelemetryService _telemetry;
+    private readonly ILogger<OverwriteNetworkRestrictionRules> _logger;
+    private readonly TimeProvider _timeProvider;
 
-    public OverwriteNetworkRestrictionRules(IDynamicAllowListingService dalService, TelemetryClient telemetryClient)
+    public OverwriteNetworkRestrictionRules(
+        IDynamicAllowListingService dalService,
+        ICustomTelemetryService telemetry,
+        ILogger<OverwriteNetworkRestrictionRules> logger,
+        TimeProvider? timeProvider = null)
     {
       _dalService = dalService;
-      _telemetryClient = telemetryClient;
+      _telemetry = telemetry;
+      _logger = logger;
+      _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     [Function(nameof(OverwriteNetworkRestrictionsActivityTrigger))]
     public async Task<ResultObject> OverwriteNetworkRestrictionsActivityTrigger(
-      [ActivityTrigger] OrchestrationParameters parameters, FunctionContext context)
+        [ActivityTrigger] OrchestrationParameters parameters,
+        FunctionContext context)
     {
-      if (parameters == null) throw new ArgumentNullException(nameof(parameters));
-
-      string instanceId = parameters.InvocationID;
-      ResourceDependencyInformation resourceDependencyInformation = parameters.InputData;
-
-      ResultObject result = new ResultObject();
-      using (var depOperation = _telemetryClient.StartOperation<RequestTelemetry>("OverwriteNetworkRestrictionsActivityTrigger", instanceId))
+      if (parameters == null)
       {
-        try
-        {
-          result.FunctionNames.Add(nameof(OverwriteNetworkRestrictionsActivityTrigger));
-          result.InvocationIDs.Add(context.InvocationId);
-
-          // Log function start in telemetry
-          _telemetryClient.TrackTrace($"Started overwriting network restrictions for resource: {resourceDependencyInformation.ResourceName}, Instance ID: {instanceId}", SeverityLevel.Information);
-
-          // Perform the network restrictions overwrite operation
-          result = await OverwriteNetworkRestrictions(resourceDependencyInformation);
-
-          // Log the success of the operation
-          _telemetryClient.TrackTrace($"Successfully overwrote network restrictions for resource: {resourceDependencyInformation.ResourceName}.", SeverityLevel.Information);
-
-          depOperation.Telemetry.Success = true;
-        }
-        catch (Exception ex)
-        {
-          _telemetryClient.TrackException(ex, new Dictionary<string, string>{
-                              { "InstanceId", instanceId }
-                          });
-          result.Errors.Add($"Error occurred while overwriting network restrictions: {ex.Message}");
-
-          // Log failure in telemetry
-          _telemetryClient.TrackTrace($"Error overwriting network restrictions for resource: {resourceDependencyInformation.ResourceName}. Error: {ex.Message}", SeverityLevel.Error);
-
-          depOperation.Telemetry.Success = false;
-        }
+        _logger.LogNullParameters(nameof(OverwriteNetworkRestrictionsActivityTrigger));
+        throw new ArgumentNullException(nameof(parameters));
       }
 
-      // Return the result, containing any success or error messages
-      return result;
-    }
+      var instanceId = parameters.InvocationID;
+      var resourceInfo = parameters.InputData;
+      var result = new ResultObject();
 
+      using var loggerScope = _logger.BeginActivityScope(
+          nameof(OverwriteNetworkRestrictionsActivityTrigger),
+          instanceId,
+          context.InvocationId,
+          resourceInfo.ResourceName);
 
-    [Function(nameof(OverwriteNetworkRestrictionsQueueTrigger))]
-    public async Task OverwriteNetworkRestrictionsQueueTrigger(
-      [QueueTrigger("network-restriction-configs", Connection = "StorageQueueStorageAccountConnectionString")] ResourceDependencyInformation config,
-      FunctionContext context)
-    {
-      // Retrieve the invocation ID for telemetry tracking
-      string instanceId = context.InvocationId.ToString();
+      using var operation = _telemetry.StartOperation(
+          "OverwriteNetworkRestrictionsActivity",
+          new Dictionary<string, string>
+          {
+            ["InstanceId"] = instanceId,
+            ["ResourceName"] = resourceInfo.ResourceName ?? "Unknown",
+            ["ResourceId"] = resourceInfo.ResourceId ?? "Unknown"
+          });
 
-      using (var operation = _telemetryClient.StartOperation<RequestTelemetry>("OverwriteNetworkRestrictionsQueueTrigger", instanceId))
-      {
-        try
-        {
-          // Log the start of the queue item processing
-          _telemetryClient.TrackTrace($"Started processing network restriction config for resource: {config.ResourceName}, Instance ID: {instanceId}", SeverityLevel.Information);
-
-          // Call the OverwriteNetworkRestrictions method to perform the overwrite action
-          await OverwriteNetworkRestrictions(config);
-
-          // Log success
-          _telemetryClient.TrackTrace($"Successfully processed network restriction config for resource: {config.ResourceName}.", SeverityLevel.Information);
-
-          // Set the operation status to success
-          operation.Telemetry.Success = true;
-        }
-        catch (Exception ex)
-        {
-          _telemetryClient.TrackException(ex, new Dictionary<string, string>{
-                              { "InstanceId", instanceId }
-                          });
-
-          // Log failure message
-          _telemetryClient.TrackTrace($"Error processing network restriction config for resource: {config.ResourceName}. Error: {ex.Message}", SeverityLevel.Error);
-
-          // Set the operation status to failure
-          operation.Telemetry.Success = false;
-        }
-      }
-    }
-
-
-    private async Task<ResultObject> OverwriteNetworkRestrictions(ResourceDependencyInformation resourceDependencyInformation)
-    {
-      ResultObject result;
       try
       {
-        _telemetryClient.TrackTrace($"Overwrite operation started for {resourceDependencyInformation.ResourceName}", SeverityLevel.Information);
-        result = await _dalService.OverwriteNetworkRestrictionRulesForMainResource(resourceDependencyInformation); 
-        _telemetryClient.TrackTrace($"Overwrite operation completed for {resourceDependencyInformation.ResourceName}", SeverityLevel.Information);
+        result.FunctionNames.Add(nameof(OverwriteNetworkRestrictionsActivityTrigger));
+        result.InvocationIDs.Add(context.InvocationId);
 
+        _logger.LogActivityStarted(nameof(OverwriteNetworkRestrictionsActivityTrigger), instanceId, context.InvocationId);
+        _logger.LogOverwritingNetworkRestrictions(resourceInfo.ResourceName ?? "Unknown", instanceId);
+
+        // Perform the overwrite
+        result = await _dalService.OverwriteNetworkRestrictionRulesForMainResource(resourceInfo);
+
+        _logger.LogNetworkRestrictionsOverwritten(resourceInfo.ResourceName ?? "Unknown", instanceId);
+        _logger.LogActivityCompleted(nameof(OverwriteNetworkRestrictionsActivityTrigger), instanceId, result.Success);
+
+        operation.SetSuccess();
       }
       catch (Exception ex)
       {
-        _telemetryClient.TrackException(ex);
-        throw;
+        _logger.LogActivityFailed(ex, nameof(OverwriteNetworkRestrictionsActivityTrigger), instanceId);
+        _logger.LogNetworkRestrictionsOverwriteFailed(ex, resourceInfo.ResourceName ?? "Unknown", instanceId);
+
+        operation.SetFailed(ex.Message);
+        _telemetry.TrackException(ex, new Dictionary<string, string>
+        {
+          ["InstanceId"] = instanceId,
+          ["Activity"] = nameof(OverwriteNetworkRestrictionsActivityTrigger),
+          ["ResourceName"] = resourceInfo.ResourceName ?? "Unknown"
+        });
+
+        result.Errors.Add($"Error overwriting network restrictions: {ex.Message}");
       }
+
       return result;
+    }
+
+    [Function(nameof(OverwriteNetworkRestrictionsQueueTrigger))]
+    public async Task OverwriteNetworkRestrictionsQueueTrigger(
+        [QueueTrigger("network-restriction-configs", Connection = "StorageQueueStorageAccountConnectionString")] ResourceDependencyInformation config,
+        FunctionContext context)
+    {
+      var instanceId = context.InvocationId.ToString();
+
+      using var loggerScope = _logger.BeginFunctionScope(nameof(OverwriteNetworkRestrictionsQueueTrigger), instanceId);
+      using var operation = _telemetry.StartOperation(
+          "OverwriteNetworkRestrictionsQueueTrigger",
+          new Dictionary<string, string>
+          {
+            ["InstanceId"] = instanceId,
+            ["ResourceName"] = config.ResourceName ?? "Unknown",
+            ["ResourceId"] = config.ResourceId ?? "Unknown"
+          });
+
+      try
+      {
+        _logger.LogQueueTriggerStarted(nameof(OverwriteNetworkRestrictionsQueueTrigger), instanceId, config.ResourceName ?? "Unknown");
+        _logger.LogProcessingQueueMessage(config.ResourceName ?? "Unknown", config.ResourceId ?? "Unknown");
+        _logger.LogOverwritingNetworkRestrictions(config.ResourceName ?? "Unknown", instanceId);
+
+        // Perform the overwrite
+        var result = await _dalService.OverwriteNetworkRestrictionRulesForMainResource(config);
+
+        _logger.LogNetworkRestrictionsOverwritten(config.ResourceName ?? "Unknown", instanceId);
+        _logger.LogQueueTriggerCompleted(nameof(OverwriteNetworkRestrictionsQueueTrigger), instanceId, result.Success);
+
+        if (result.Errors.Count > 0)
+        {
+          _logger.LogOperationCompletedWithErrors(instanceId, result.Errors.Count);
+          operation.SetFailed($"{result.Errors.Count} errors");
+        }
+        else
+        {
+          operation.SetSuccess();
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogQueueTriggerFailed(ex, nameof(OverwriteNetworkRestrictionsQueueTrigger), instanceId);
+        _logger.LogNetworkRestrictionsOverwriteFailed(ex, config.ResourceName ?? "Unknown", instanceId);
+
+        operation.SetFailed(ex.Message);
+        _telemetry.TrackException(ex, new Dictionary<string, string>
+        {
+          ["InstanceId"] = instanceId,
+          ["Function"] = nameof(OverwriteNetworkRestrictionsQueueTrigger),
+          ["ResourceName"] = config.ResourceName ?? "Unknown"
+        });
+      }
     }
   }
 }

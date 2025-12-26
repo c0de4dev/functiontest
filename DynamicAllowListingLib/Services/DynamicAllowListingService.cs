@@ -65,7 +65,6 @@ namespace DynamicAllowListingLib.Services
 
     public async Task<ResultObject> UpdateDb(ResourceDependencyInformation resourceDependencyInformation)
     {
-      var stopwatch = Stopwatch.StartNew();
       var resourceId = resourceDependencyInformation.ResourceId ?? "Unknown";
 
       using (_logger.BeginResourceScope(resourceDependencyInformation))
@@ -80,17 +79,13 @@ namespace DynamicAllowListingLib.Services
         try
         {
           var resultObject = await _persistenceManager.CreateOrReplaceItemInDb(resourceDependencyInformation);
-
-          stopwatch.Stop();
           _logger.LogDbUpdateComplete(resourceId, "CreateOrReplace");
           _logger.LogServiceOperationComplete(nameof(UpdateDb), resourceId, true);
-
 
           return resultObject;
         }
         catch (Exception ex)
         {
-          stopwatch.Stop();
           _logger.LogServiceException(ex, nameof(UpdateDb), resourceDependencyInformation);
           throw;
         }
@@ -264,14 +259,11 @@ namespace DynamicAllowListingLib.Services
           var websiteSlot = await GetWebSiteSlot(mainAzureResource!, _resourceGraphExplorerService);
           if (websiteSlot != null)
           {
-            var slotStopwatch = Stopwatch.StartNew();
             _logger.LogWebsiteSlotProcessing(websiteSlot.Id!, resourceId);
 
             var slotRestrictions = GetWebsiteSlotRestrictions(websiteSlot.Id!, networkRestrictionsToOverwrite);
             var slotRestrictionResult = await websiteSlot.OverWriteNetworkRestrictionRules(slotRestrictions, _logger, _restHelper);
             resultObject.Merge(slotRestrictionResult);
-
-            slotStopwatch.Stop();
             _logger.LogWebsiteSlotRestrictionsApplied(websiteSlot.Id!);
           }
 

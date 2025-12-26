@@ -1,4 +1,5 @@
 using DynamicAllowListingLib;
+using DynamicAllowListingLib.Logging;
 using DynamicAllowListingLib.Models;
 using DynamicAllowListingLib.Services;
 using DynamicAllowListingLib.SettingsValidation;
@@ -8,87 +9,93 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.WebJobs;
-using Microsoft.ApplicationInsights;
-using Microsoft.ApplicationInsights.DataContracts;
+using AllowListingAzureFunction.Logging;
 
 namespace AllowListingAzureFunction
 {
   public class AppServicePlanScaledEventHandler
   {
     private readonly IDynamicAllowListingService _dynamicAllowListingHelper;
-    private readonly TelemetryClient _telemetryClient;
+    private readonly ICustomTelemetryService _telemetry;
+    private readonly ILogger<AppServicePlanScaledEventHandler> _logger;
+    private readonly TimeProvider _timeProvider;
 
-    public AppServicePlanScaledEventHandler(IDynamicAllowListingService dynamicAllowListingHelper, 
-    TelemetryClient telemetryClient)
+    public AppServicePlanScaledEventHandler(
+        IDynamicAllowListingService dynamicAllowListingHelper,
+        ICustomTelemetryService telemetry,
+        ILogger<AppServicePlanScaledEventHandler> logger,
+        TimeProvider? timeProvider = null)
     {
       _dynamicAllowListingHelper = dynamicAllowListingHelper;
-      _telemetryClient = telemetryClient;
+      _telemetry = telemetry;
+      _logger = logger;
+      _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     [Function("AppServicePlanScaledEventHandler")]
     [QueueOutput("network-restriction-configs", Connection = "StorageQueueStorageAccountConnectionString")]
     public async Task<ResourceDependencyInformation[]> Run(
-      [QueueTrigger("apspl-scaled", Connection = "StorageQueueStorageAccountConnectionString")] string queueItem)
+        [QueueTrigger("apspl-scaled", Connection = "StorageQueueStorageAccountConnectionString")] string queueItem)
     {
-      var operationId = Guid.NewGuid().ToString(); // Generate a unique operation ID for correlation
+      var operationId = Guid.NewGuid().ToString();
+      var overwriteQueue = new List<ResourceDependencyInformation>();
 
-      using (var operation = _telemetryClient.StartOperation<RequestTelemetry>("AppServicePlanScaledEventHandler", operationId))
+      using var loggerScope = _logger.BeginFunctionScope(nameof(AppServicePlanScaledEventHandler), operationId);
+      using var operation = _telemetry.StartOperation("AppServicePlanScaledEventHandler",
+          new Dictionary<string, string> { ["OperationId"] = operationId });
+
+      try
       {
-        var overwriteQueue = new List<ResourceDependencyInformation>();
-        try
+        _logger.LogQueueTriggerStarted(nameof(AppServicePlanScaledEventHandler), operationId, "AppServicePlanScaling");
+        _logger.LogProcessingQueueMessage("AppServicePlanScaling", queueItem);
+
+        var eventGridData = JsonConvert.DeserializeObject<EventGridData>(queueItem);
+
+        if (eventGridData?.ResourceId == null)
         {
-          // Log the incoming queue item
-          _telemetryClient.TrackTrace($"Processing scaling event for queueItem: {queueItem}", SeverityLevel.Information);
-          var eventGridData = JsonConvert.DeserializeObject<EventGridData>(queueItem);
+          _logger.LogOperationErrors(operationId, $"Null ResourceId in queue item: {queueItem}");
+          operation.SetFailed("Null ResourceId");
+          throw new ArgumentNullException("ResourceId", $"Null ResourceId found in queue item");
+        }
 
-          if (eventGridData?.ResourceId == null)
-          {
-            var errorMessage = $"Null ResourceId found in queue item: {queueItem}";
-            _telemetryClient.TrackTrace(errorMessage, SeverityLevel.Error);
-            throw new ArgumentNullException("ResourceId", errorMessage); // Throw with context for clearer debugging
-          }
+        operation.AddProperty("ResourceId", eventGridData.ResourceId);
 
-          if (!ValidationHelper.IsValidAppServicePlanId(eventGridData.ResourceId))
-          {
-            var errorMessage = $"Invalid ResourceId in queue item: {queueItem}";
-            _telemetryClient.TrackTrace(errorMessage, SeverityLevel.Error);
-            throw new ArgumentException("Invalid App Service Plan ID", "ResourceId");
-          }
-
-          _telemetryClient.TrackTrace($"Scaling detected for ResourceId: {eventGridData.ResourceId}", SeverityLevel.Information);
-
-
-          var configsToOverwrite = await
-            _dynamicAllowListingHelper.GetOverwriteConfigsForAppServicePlanScale(eventGridData.ResourceId);
-
-          if (configsToOverwrite == null || configsToOverwrite.Count == 0)
-          {
-            _telemetryClient.TrackTrace($"No overwrite configurations found for ResourceId: {eventGridData.ResourceId}", SeverityLevel.Information);
-          }
-          else
-          {
-            foreach (var resourceDependencyInformation in configsToOverwrite)
-            {
-              overwriteQueue.Add(resourceDependencyInformation);
-              _telemetryClient.TrackTrace($"Added {resourceDependencyInformation.ResourceName} to overwrite queue.", SeverityLevel.Information);
-            }
-          }
+        if (!ValidationHelper.IsValidAppServicePlanResourceId(eventGridData.ResourceId))
+        {
+          _logger.LogOperationCompletedWithErrors(operationId, 1);
+          _logger.LogQueueTriggerCompleted(nameof(AppServicePlanScaledEventHandler), operationId, true);
+          operation.SetSuccess();
           return overwriteQueue.ToArray();
         }
-        catch (Exception ex)
+
+        // Get resources hosted on this App Service Plan
+        var configs = await _dynamicAllowListingHelper.GetResourceDependencyConfigsForPlan(eventGridData.ResourceId);
+        _logger.LogFetchedDependencyConfigs(configs.Count, operationId);
+
+        foreach (var config in configs)
         {
-          _telemetryClient.TrackException(ex, new Dictionary<string, string>{
-                              { "QueueItem", queueItem },
-                              { "OperationId", operationId }
-                          });
-          throw; // Re-throw the exception to propagate it
+          overwriteQueue.Add(config);
+          _logger.LogAddingConfigToQueue(config.ResourceName ?? "Unknown");
         }
-        finally
-        {
-          _telemetryClient.StopOperation(operation); // Ensure operation is stopped
-        }
+
+        operation.AddMetric("ConfigsQueued", overwriteQueue.Count);
+        _logger.LogQueueTriggerCompleted(nameof(AppServicePlanScaledEventHandler), operationId, true);
+        operation.SetSuccess();
       }
+      catch (Exception ex)
+      {
+        _logger.LogQueueTriggerFailed(ex, nameof(AppServicePlanScaledEventHandler), operationId);
+        operation.SetFailed(ex.Message);
+        _telemetry.TrackException(ex, new Dictionary<string, string>
+        {
+          ["OperationId"] = operationId,
+          ["Function"] = nameof(AppServicePlanScaledEventHandler),
+          ["QueueItem"] = queueItem
+        });
+        throw;
+      }
+
+      return overwriteQueue.ToArray();
     }
   }
 }

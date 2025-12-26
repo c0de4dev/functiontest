@@ -1,4 +1,5 @@
 using DynamicAllowListingLib;
+using DynamicAllowListingLib.Logging;
 using DynamicAllowListingLib.Services;
 using DynamicAllowListingLib.ServiceTagManagers.Model;
 using Microsoft.Extensions.Logging;
@@ -6,9 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.ApplicationInsights.DataContracts;
-using Microsoft.ApplicationInsights;
-using Azure.Storage.Queues.Models;
+using AllowListingAzureFunction.Logging;
 
 namespace AllowListingAzureFunction
 {
@@ -16,150 +15,154 @@ namespace AllowListingAzureFunction
   {
     private readonly IIpRestrictionService<HashSet<AzureSubscription>> _ipRestrictionServiceAz;
     private readonly IIpRestrictionService<HashSet<ServiceTag>> _ipRestrictionServiceServiceTag;
-    private readonly TelemetryClient _telemetryClient;
+    private readonly ICustomTelemetryService _telemetry;
+    private readonly ILogger<UpdateInternalAndThirdPartySettingsEventHandler> _logger;
+    private readonly TimeProvider _timeProvider;
 
-    public UpdateInternalAndThirdPartySettingsEventHandler(IIpRestrictionService<HashSet<AzureSubscription>> ipRestrictionServiceAz,
-                                                           IIpRestrictionService<HashSet<ServiceTag>> ipRestrictionServiceServiceTag,
-                                                           TelemetryClient telemetryClient)
+    public UpdateInternalAndThirdPartySettingsEventHandler(
+        IIpRestrictionService<HashSet<AzureSubscription>> ipRestrictionServiceAz,
+        IIpRestrictionService<HashSet<ServiceTag>> ipRestrictionServiceServiceTag,
+        ICustomTelemetryService telemetry,
+        ILogger<UpdateInternalAndThirdPartySettingsEventHandler> logger,
+        TimeProvider? timeProvider = null)
     {
       _ipRestrictionServiceAz = ipRestrictionServiceAz;
       _ipRestrictionServiceServiceTag = ipRestrictionServiceServiceTag;
-      _telemetryClient = telemetryClient;
+      _telemetry = telemetry;
+      _logger = logger;
+      _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     [Function("ListenAzureSubscriptionChangeEvents")]
     [QueueOutput("network-restriction-configs", Connection = "StorageQueueStorageAccountConnectionString")]
     public async Task<ResourceDependencyInformation[]> ListenAzSubscriptionEvents(
         [CosmosDBTrigger(
-        databaseName: Constants.DatabaseName,
-        collectionName: Constants.AzureSubscriptionsCollection,
-        LeaseCollectionName = Constants.AzureSubscriptionsLease,
-        ConnectionStringSetting = "CosmosDBConnectionString",
-        CreateLeaseCollectionIfNotExists = true)] IReadOnlyList<AzureSubscription> azureSubscriptionDocs)
+            databaseName: Constants.DatabaseName,
+            collectionName: Constants.AzureSubscriptionsCollection,
+            LeaseCollectionName = Constants.AzureSubscriptionsLease,
+            ConnectionStringSetting = "CosmosDBConnectionString",
+            CreateLeaseCollectionIfNotExists = true)] IReadOnlyList<AzureSubscription> azureSubscriptionDocs)
     {
       var queueMessages = new List<ResourceDependencyInformation>();
-      var operationId = Guid.NewGuid().ToString(); // Unique operation ID for tracing
+      var operationId = Guid.NewGuid().ToString();
+      var documentCount = azureSubscriptionDocs?.Count ?? 0;
 
-      // Start logging and tracking the operation with telemetry
-      using (var operation = _telemetryClient.StartOperation<RequestTelemetry>("ListenAzSubscriptionEvents", operationId))
+      using var loggerScope = _logger.BeginCosmosTriggerScope("ListenAzureSubscriptionChangeEvents", operationId, documentCount);
+      using var operation = _telemetry.StartOperation("ListenAzSubscriptionEvents",
+          new Dictionary<string, string> { ["OperationId"] = operationId, ["DocumentCount"] = documentCount.ToString() });
+
+      try
       {
-        _telemetryClient.Context.Operation.Id = operationId;
-        _telemetryClient.TrackTrace($"Starting subscription change event processing. OperationId: {operationId}", SeverityLevel.Information);
+        _logger.LogCosmosTriggerStarted("ListenAzureSubscriptionChangeEvents", operationId, documentCount);
 
-        try
+        if (azureSubscriptionDocs != null && azureSubscriptionDocs.Count > 0)
         {
-          // Log the number of subscription documents received
-          if (azureSubscriptionDocs != null && azureSubscriptionDocs.Count > 0)
+          var inputList = new HashSet<AzureSubscription>(azureSubscriptionDocs);
+
+          foreach (var subscription in inputList)
           {
-            _telemetryClient.TrackTrace($"Received {azureSubscriptionDocs.Count} Azure subscription changes.", SeverityLevel.Information);
-
-            var inputList = new HashSet<AzureSubscription>(azureSubscriptionDocs);
-            foreach (var model in inputList)
-            {
-              _telemetryClient.TrackTrace($"Processing update for subscription: {model.Name} (ID: {model.Id})", SeverityLevel.Information);
-            }
-
-            // Fetch valid dependency configurations based on the received subscriptions
-            var configs = await _ipRestrictionServiceAz.GetValidDependencyConfigs(inputList);
-
-            // Log configurations added to the queue
-            foreach (var config in configs)
-            {
-              queueMessages.Add(config);
-              _telemetryClient.TrackTrace($"Config for resource '{config.ResourceName}' added to queue.", SeverityLevel.Information);
-            }
+            _logger.LogProcessingSubscriptionChange(subscription.Id ?? "Unknown", operationId);
           }
-          else
+
+          // Fetch valid dependency configurations
+          var configs = await _ipRestrictionServiceAz.GetValidDependencyConfigs(inputList);
+          _logger.LogFetchedDependencyConfigs(configs.Count, operationId);
+
+          foreach (var config in configs)
           {
-            _telemetryClient.TrackTrace("No Azure subscription changes detected.", SeverityLevel.Warning);
+            queueMessages.Add(config);
+            _logger.LogAddingConfigToQueue(config.ResourceName ?? "Unknown");
           }
+
+          operation.AddMetric("ConfigsQueued", queueMessages.Count);
         }
-        catch (Exception ex)
+        else
         {
-          _telemetryClient.TrackException(ex, new Dictionary<string, string>{
-                              { "OperationId", operationId }
-                          });
-          _telemetryClient.TrackTrace($"Error occurred during Azure subscription event processing. OperationId: {operationId}. Exception: {ex.Message}, Inner Exception: {ex.InnerException?.Message}", SeverityLevel.Error);
-          throw;
-        }
-        finally
-        {
-          _telemetryClient.TrackTrace($"Finished processing Azure subscription events. OperationId: {operationId}", SeverityLevel.Information);
+          _logger.LogNoDocumentsToProcess("ListenAzureSubscriptionChangeEvents", operationId);
         }
 
-        // Return the collected queue messages
-        return queueMessages.ToArray();
+        _logger.LogCosmosTriggerCompleted("ListenAzureSubscriptionChangeEvents", operationId, queueMessages.Count);
+        operation.SetSuccess();
       }
+      catch (Exception ex)
+      {
+        _logger.LogCosmosTriggerFailed(ex, "ListenAzureSubscriptionChangeEvents", operationId);
+        operation.SetFailed(ex.Message);
+        _telemetry.TrackException(ex, new Dictionary<string, string>
+        {
+          ["OperationId"] = operationId,
+          ["Function"] = "ListenAzureSubscriptionChangeEvents"
+        });
+        throw;
+      }
+
+      return queueMessages.ToArray();
     }
 
     [Function("ListenServiceTagsChangeEvents")]
     [QueueOutput("network-restriction-configs", Connection = "StorageQueueStorageAccountConnectionString")]
     public async Task<ResourceDependencyInformation[]> ListenServiceTagEvents(
-    [CosmosDBTrigger(
-        databaseName: Constants.DatabaseName,
-        collectionName: Constants.ServiceTagsCollection,
-        LeaseCollectionName = Constants.ServiceTagsLease,
-        ConnectionStringSetting = "CosmosDBConnectionString",
-        CreateLeaseCollectionIfNotExists = true)] IReadOnlyList<ServiceTag> serviceTagDocs)
+        [CosmosDBTrigger(
+            databaseName: Constants.DatabaseName,
+            collectionName: Constants.ServiceTagsCollection,
+            LeaseCollectionName = Constants.ServiceTagsLease,
+            ConnectionStringSetting = "CosmosDBConnectionString",
+            CreateLeaseCollectionIfNotExists = true)] IReadOnlyList<ServiceTag> serviceTagDocs)
     {
       var queueMessages = new List<ResourceDependencyInformation>();
-      var operationId = Guid.NewGuid().ToString(); // Unique operation ID for tracing
+      var operationId = Guid.NewGuid().ToString();
+      var documentCount = serviceTagDocs?.Count ?? 0;
 
-      // Start logging and tracking the operation with telemetry
-      using (var operation = _telemetryClient.StartOperation<RequestTelemetry>("ListenServiceTagEvents", operationId))
+      using var loggerScope = _logger.BeginCosmosTriggerScope("ListenServiceTagsChangeEvents", operationId, documentCount);
+      using var operation = _telemetry.StartOperation("ListenServiceTagEvents",
+          new Dictionary<string, string> { ["OperationId"] = operationId, ["DocumentCount"] = documentCount.ToString() });
+
+      try
       {
-        _telemetryClient.Context.Operation.Id = operationId;
-        _telemetryClient.TrackTrace($"Starting service tag change event processing. OperationId: {operationId}", SeverityLevel.Information);
+        _logger.LogCosmosTriggerStarted("ListenServiceTagsChangeEvents", operationId, documentCount);
 
-        try
+        if (serviceTagDocs != null && serviceTagDocs.Count > 0)
         {
-          // Log the number of service tag documents received
-          if (serviceTagDocs != null && serviceTagDocs.Count > 0)
+          var inputList = new HashSet<ServiceTag>(serviceTagDocs);
+
+          foreach (var serviceTag in inputList)
           {
-            _telemetryClient.TrackTrace($"Received {serviceTagDocs.Count} service tag changes.", SeverityLevel.Information);
-
-            var inputList = new HashSet<ServiceTag>(serviceTagDocs);
-            foreach (var model in inputList)
-            {
-              _telemetryClient.TrackTrace($"Processing update for service tag: {model.Name} (ID: {model.Id})", SeverityLevel.Information);
-            }
-
-            // Fetch valid dependency configurations based on the received service tags
-            var configs = await _ipRestrictionServiceServiceTag.GetValidDependencyConfigs(inputList);
-
-            // Log configurations added to the queue
-            foreach (var config in configs)
-            {
-              queueMessages.Add(config);
-              _telemetryClient.TrackTrace($"Config for resource '{config.ResourceName}' added to queue.", SeverityLevel.Information);
-            }
+            _logger.LogProcessingServiceTagChange(serviceTag.Name ?? "Unknown", serviceTag.Id ?? "Unknown", operationId);
           }
-          else
+
+          // Fetch valid dependency configurations
+          var configs = await _ipRestrictionServiceServiceTag.GetValidDependencyConfigs(inputList);
+          _logger.LogFetchedDependencyConfigs(configs.Count, operationId);
+
+          foreach (var config in configs)
           {
-            _telemetryClient.TrackTrace("No service tag changes detected.", SeverityLevel.Warning);
+            queueMessages.Add(config);
+            _logger.LogAddingConfigToQueue(config.ResourceName ?? "Unknown");
           }
+
+          operation.AddMetric("ConfigsQueued", queueMessages.Count);
         }
-        catch (Exception ex)
+        else
         {
-          _telemetryClient.TrackException(ex, new Dictionary<string, string>{
-                              { "OperationId", operationId }
-                          });
-
-          _telemetryClient.TrackTrace($"Error occurred during service tag event processing. OperationId: {operationId}. Exception: {ex.Message}, Inner Exception: {ex.InnerException?.Message}", SeverityLevel.Error);
-
-          // Rethrow the exception after logging it
-          throw;
-        }
-        finally
-        {
-          // Final telemetry operation stop
-          _telemetryClient.TrackTrace($"Finished processing service tag events. OperationId: {operationId}", SeverityLevel.Information);
+          _logger.LogNoDocumentsToProcess("ListenServiceTagsChangeEvents", operationId);
         }
 
-        // Return the collected queue messages
-        return queueMessages.ToArray();
+        _logger.LogCosmosTriggerCompleted("ListenServiceTagsChangeEvents", operationId, queueMessages.Count);
+        operation.SetSuccess();
       }
-    }
+      catch (Exception ex)
+      {
+        _logger.LogCosmosTriggerFailed(ex, "ListenServiceTagsChangeEvents", operationId);
+        operation.SetFailed(ex.Message);
+        _telemetry.TrackException(ex, new Dictionary<string, string>
+        {
+          ["OperationId"] = operationId,
+          ["Function"] = "ListenServiceTagsChangeEvents"
+        });
+        throw;
+      }
 
+      return queueMessages.ToArray();
+    }
   }
 }

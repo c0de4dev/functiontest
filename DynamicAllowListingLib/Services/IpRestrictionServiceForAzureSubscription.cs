@@ -51,7 +51,6 @@ namespace DynamicAllowListingLib.Services
       if (updatedAzureSubscriptionsModel == null || !updatedAzureSubscriptionsModel.Any())
       {
         _logger.LogAzureSubscriptionsEmpty();
-        _logger.LogMethodComplete(nameof(GetValidDependencyConfigs), true);
         return validConfigs;
       }
 
@@ -64,7 +63,6 @@ namespace DynamicAllowListingLib.Services
           if (!relatedServiceTags.Any())
           {
             _logger.LogNoRelatedServiceTagsFound();
-            _logger.LogMethodComplete(nameof(GetValidDependencyConfigs), true);
             return validConfigs;
           }
 
@@ -73,7 +71,6 @@ namespace DynamicAllowListingLib.Services
           if (!dependencyConfigList.Any())
           {
             _logger.LogNoDependencyConfigsFound();
-            _logger.LogMethodComplete(nameof(GetValidDependencyConfigs), true);
             return validConfigs;
           }
 
@@ -82,7 +79,6 @@ namespace DynamicAllowListingLib.Services
           if (!cleanDpList.Any())
           {
             _logger.LogAllConfigsInvalid();
-            _logger.LogMethodComplete(nameof(GetValidDependencyConfigs), true);
             return validConfigs;
           }
 
@@ -92,7 +88,6 @@ namespace DynamicAllowListingLib.Services
 
           validConfigs = cleanDpList;
         }
-        _logger.LogMethodComplete(nameof(GetValidDependencyConfigs), true);
       }
       catch (Exception ex)
       {
@@ -120,7 +115,6 @@ namespace DynamicAllowListingLib.Services
       if (changedModelList == null || !changedModelList.Any())
       {
         _logger.LogAzureSubscriptionModelEmpty();
-        _logger.LogMethodComplete(nameof(FindRelatedServiceTags), true);
         return new List<ServiceTag>();
       }
 
@@ -144,7 +138,6 @@ namespace DynamicAllowListingLib.Services
           if (allServiceTags == null || !allServiceTags.Any())
           {
             _logger.LogNoServiceTagsInDatabase();
-            _logger.LogMethodComplete(nameof(FindRelatedServiceTags), true);
             return new List<ServiceTag>();
           }
 
@@ -167,7 +160,6 @@ namespace DynamicAllowListingLib.Services
             _logger.LogRelatedServiceTagsFound(relatedServiceTags.Count, tagNames);
           }
 
-          _logger.LogMethodComplete(nameof(FindRelatedServiceTags), true);
           return relatedServiceTags;
         }
       }

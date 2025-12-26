@@ -72,8 +72,6 @@ namespace DynamicAllowListingLib.Services
           {
             _logger.LogNoNetworkRestrictionConfigsFound();
           }
-
-          _logger.LogMethodComplete(nameof(FindRelatedDependencyConfigs), true);
         }
       }
       catch (Exception ex)

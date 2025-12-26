@@ -63,10 +63,11 @@ namespace DynamicAllowListingLib
           var safeSubscriptionIds = subscriptionIds ?? Array.Empty<string>();
 
           var response = await GetResourceGraphExplorerResponse(safeSubscriptionIds, queryBuilder.ToString());
-          resources = JsonConvert.DeserializeObject<List<IAzureResource>>(response, (JsonConverter)_jsonConvertor);
+          var deserializedResources = JsonConvert.DeserializeObject<List<IAzureResource>>(response, (JsonConverter)_jsonConvertor);
 
-          if (resources != null)
+          if (deserializedResources != null)
           {
+            resources = deserializedResources;
             _logger.LogGetResourceInstancesComplete(resources.Count);
           }
           else
@@ -82,7 +83,7 @@ namespace DynamicAllowListingLib
         }
       }
 
-      return resources ?? new List<IAzureResource>();
+      return resources;
     }
 
     public async Task<string> GetResourceGraphExplorerResponse(string[] subscriptionIds, string query)
@@ -115,7 +116,9 @@ namespace DynamicAllowListingLib
 
           _logger.LogResourceGraphRequestBody(requestBody.Length);
 
-          response = await _restHelper.DoPostAsJson(url, requestBody);
+          // Fix CS8600: Handle potential null response from DoPostAsJson
+          var apiResponse = await _restHelper.DoPostAsJson(url, requestBody);
+          response = apiResponse ?? string.Empty;
 
           if (!string.IsNullOrEmpty(response))
           {
@@ -125,8 +128,6 @@ namespace DynamicAllowListingLib
           {
             _logger.LogEmptyResourceGraphResponse();
           }
-
-          _logger.LogMethodComplete(nameof(GetResourceGraphExplorerResponse), true);
         }
         catch (Exception ex)
         {
@@ -135,6 +136,7 @@ namespace DynamicAllowListingLib
         }
       }
 
+      // Fix CS8603: response is guaranteed to be non-null (initialized to string.Empty)
       return response;
     }
 
@@ -355,11 +357,15 @@ namespace DynamicAllowListingLib
 
           var queryResult = JsonConvert.DeserializeObject<VNets>(response);
 
-          if (queryResult != null)
+          // Fix CS8601: Handle potential null queryResult.data
+          if (queryResult?.data != null)
           {
             foreach (var row in queryResult.data)
             {
-              idList.AddRange(row.properties.subnets.Select(subnet => subnet.id));
+              if (row?.properties?.subnets != null)
+              {
+                idList.AddRange(row.properties.subnets.Select(subnet => subnet.id));
+              }
             }
           }
 
@@ -454,7 +460,7 @@ namespace DynamicAllowListingLib
           var queryResult = JsonConvert.DeserializeObject<FrontDoorGraphResult>(response);
 
           // Map the resource ID to the unique Front Door instance ID
-          if (queryResult != null)
+          if (queryResult?.data != null)
           {
             foreach (var data in queryResult.data)
             {

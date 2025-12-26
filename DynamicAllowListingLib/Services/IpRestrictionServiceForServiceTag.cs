@@ -124,8 +124,6 @@ namespace DynamicAllowListingLib.Services
         _logger.LogNoDeletedServiceTagsFound();
       }
 
-      _logger.LogMethodComplete(nameof(GetDeletedServiceTags), true);
-
       return deletedServiceTags;
     }
 
@@ -186,7 +184,6 @@ namespace DynamicAllowListingLib.Services
           }
         }
         _logger.LogRemoveDeletedServiceTagsComplete(modifiedCount);
-        _logger.LogMethodComplete(nameof(RemoveDeletedServiceTagsFromConfig), true);
       }
 
       return modifiedConfigs;
