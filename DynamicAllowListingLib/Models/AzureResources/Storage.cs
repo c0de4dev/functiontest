@@ -99,8 +99,14 @@ namespace DynamicAllowListingLib.Models.AzureResources
     public async Task<StorageArmProperties> GetExistingStorageArmProperties(IRestHelper restHelper, ILogger logger)
     {
       string url = $"https://management.azure.com{Id}?api-version=2021-08-01";
-      string response = await restHelper.DoGET(url);
+      string? response = await restHelper.DoGET(url);
+      if (string.IsNullOrEmpty(response))
+      {
+        logger.LogError("StorageArmProperties response was null or empty for resource {Id}.", Id);
+        throw new NoNullAllowedException($"StorageArmProperties response was null or empty for resource {Id}.");
+      }
       var StorageArmProperties = JsonConvert.DeserializeObject<StorageArmProperties>(response);
+
       if (StorageArmProperties == null)
       {
         logger.LogError("StorageArmProperties could not be resolved for resource {Id}.", Id);

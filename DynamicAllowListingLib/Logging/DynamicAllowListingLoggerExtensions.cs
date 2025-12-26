@@ -28,24 +28,22 @@ namespace DynamicAllowListingLib.Logging
     [LoggerMessage(
         EventId = 4002,
         Level = LogLevel.Information,
-        Message = "Completed {MethodName} | ResourceId: {ResourceId} | Duration: {DurationMs}ms | Success: {Success}")]
+        Message = "Completed {MethodName} | ResourceId: {ResourceId}  | Success: {Success}")]
     public static partial void LogServiceOperationComplete(
         this ILogger logger,
         string methodName,
         string resourceId,
-        long durationMs,
         bool success);
 
     [LoggerMessage(
         EventId = 4003,
         Level = LogLevel.Error,
-        Message = "Failed {MethodName} | ResourceId: {ResourceId} | Duration: {DurationMs}ms")]
+        Message = "Failed {MethodName} | ResourceId: {ResourceId}")]
     public static partial void LogServiceOperationFailed(
         this ILogger logger,
         Exception exception,
         string methodName,
-        string resourceId,
-        long durationMs);
+        string resourceId);
 
     // ============================================================
     // Database Operations (EventIds 4100-4149)
@@ -63,12 +61,11 @@ namespace DynamicAllowListingLib.Logging
     [LoggerMessage(
         EventId = 4102,
         Level = LogLevel.Information,
-        Message = "Database update completed | ResourceId: {ResourceId} | Operation: {Operation} | Duration: {DurationMs}ms")]
+        Message = "Database update completed | ResourceId: {ResourceId} | Operation: {Operation}")]
     public static partial void LogDbUpdateComplete(
         this ILogger logger,
         string resourceId,
-        string operation,
-        long durationMs);
+        string operation);
 
     [LoggerMessage(
         EventId = 4103,
@@ -104,11 +101,10 @@ namespace DynamicAllowListingLib.Logging
     [LoggerMessage(
         EventId = 4152,
         Level = LogLevel.Information,
-        Message = "Network restrictions overwritten | ResourceId: {ResourceId} | Duration: {DurationMs}ms")]
+        Message = "Network restrictions overwritten | ResourceId: {ResourceId}")]
     public static partial void LogNetworkRestrictionOverwriteComplete(
         this ILogger logger,
-        string resourceId,
-        long durationMs);
+        string resourceId);
 
     [LoggerMessage(
         EventId = 4153,
@@ -284,11 +280,10 @@ namespace DynamicAllowListingLib.Logging
     [LoggerMessage(
         EventId = 4402,
         Level = LogLevel.Information,
-        Message = "Website slot restrictions applied | SlotId: {SlotId} | Duration: {DurationMs}ms")]
+        Message = "Website slot restrictions applied | SlotId: {SlotId}")]
     public static partial void LogWebsiteSlotRestrictionsApplied(
         this ILogger logger,
-        string slotId,
-        long durationMs);
+        string slotId);
 
     // ============================================================
     // Resource Not Found Operations (EventIds 4450-4499)
@@ -379,8 +374,7 @@ namespace DynamicAllowListingLib.Logging
         this ILogger logger,
         Exception ex,
         string methodName,
-        ResourceDependencyInformation? resourceInfo = null,
-        long? durationMs = null)
+        ResourceDependencyInformation? resourceInfo = null)
     {
       var context = new Dictionary<string, object>
       {
@@ -389,11 +383,6 @@ namespace DynamicAllowListingLib.Logging
         ["ExceptionMessage"] = ex.Message,
         ["CorrelationId"] = CorrelationContext.CorrelationId
       };
-
-      if (durationMs.HasValue)
-      {
-        context["DurationMs"] = durationMs.Value;
-      }
 
       if (resourceInfo != null)
       {

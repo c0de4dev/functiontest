@@ -18,7 +18,7 @@ namespace DynamicAllowListingLib
     /// <param name="str">The string to truncate.</param>
     /// <param name="length">Maximum length (default: 28).</param>
     /// <returns>The truncated string.</returns>
-    public static string Truncate(string str, int length = 28)
+    public static string Truncate(string? str, int length = 28)
     {
       if (string.IsNullOrEmpty(str))
         return string.Empty;

@@ -139,17 +139,6 @@ namespace DynamicAllowListingLib.Logging
         string methodName,
         string resourceId);
 
-    // Performance Warnings
-    [LoggerMessage(
-        EventId = 3001,
-        Level = LogLevel.Warning,
-        Message = "Slow operation detected | Method: {MethodName} | Duration: {DurationMs}ms | Threshold: {ThresholdMs}ms")]
-    public static partial void LogSlowOperation(
-        this ILogger logger,
-        string methodName,
-        long durationMs,
-        long thresholdMs);
-
     // Custom scope logging
     public static void LogOperationException(
         this ILogger logger,

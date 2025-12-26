@@ -85,7 +85,6 @@ namespace DynamicAllowListingLib.Services
           _logger.LogDbUpdateComplete(resourceId, "CreateOrReplace");
           _logger.LogServiceOperationComplete(nameof(UpdateDb), resourceId, true);
 
-          LogSlowOperationIfNeeded(nameof(UpdateDb));
 
           return resultObject;
         }
@@ -100,7 +99,6 @@ namespace DynamicAllowListingLib.Services
 
     public async Task<ResultObject> UpdateUnmanagedResources(ResourceDependencyInformation resourceDependencyInformation)
     {
-      var stopwatch = Stopwatch.StartNew();
       var resultObject = new ResultObject();
       var resourceId = resourceDependencyInformation.ResourceId ?? "Unknown";
 
@@ -173,13 +171,10 @@ namespace DynamicAllowListingLib.Services
 
           resultObject.Merge(azureResourceService.ResultObject);
 
-          stopwatch.Stop();
           _logger.LogServiceOperationComplete(nameof(UpdateUnmanagedResources), resourceId, true);
-          LogSlowOperationIfNeeded(nameof(UpdateUnmanagedResources));
         }
         catch (Exception ex)
         {
-          stopwatch.Stop();
           _logger.LogServiceException(ex, nameof(UpdateUnmanagedResources), resourceDependencyInformation);
           resultObject.Errors.Add($"An unexpected error occurred: {ex.Message}");
         }
@@ -190,7 +185,6 @@ namespace DynamicAllowListingLib.Services
 
     public async Task<ResultObject> OverwriteNetworkRestrictionRulesForMainResource(ResourceDependencyInformation resourceDependencyInformation)
     {
-      var stopwatch = Stopwatch.StartNew();
       var resultObject = new ResultObject();
       var resourceId = resourceDependencyInformation.ResourceId ?? "Unknown";
 
@@ -261,7 +255,6 @@ namespace DynamicAllowListingLib.Services
             var subnetCount = rules.Item2?.Split(',').Length ?? 0;
             _logger.LogPrintOutMode(resourceId, ipCount, subnetCount);
 
-            stopwatch.Stop();
             _logger.LogServiceOperationComplete(nameof(OverwriteNetworkRestrictionRulesForMainResource),
                 resourceId, true);
             return resultObject;
@@ -279,7 +272,7 @@ namespace DynamicAllowListingLib.Services
             resultObject.Merge(slotRestrictionResult);
 
             slotStopwatch.Stop();
-            _logger.LogWebsiteSlotRestrictionsApplied(websiteSlot.Id!, slotStopwatch.ElapsedMilliseconds);
+            _logger.LogWebsiteSlotRestrictionsApplied(websiteSlot.Id!);
           }
 
           // Overwrite main resource restrictions
@@ -287,16 +280,12 @@ namespace DynamicAllowListingLib.Services
               networkRestrictionsToOverwrite, _logger, _restHelper);
           resultObject.Merge(overwriteResult);
 
-          stopwatch.Stop();
           _logger.LogNetworkRestrictionOverwriteComplete(resourceId);
           _logger.LogServiceOperationComplete(nameof(OverwriteNetworkRestrictionRulesForMainResource),
               resourceId, !resultObject.Errors.Any());
-
-          LogSlowOperationIfNeeded(nameof(OverwriteNetworkRestrictionRulesForMainResource));
         }
         catch (Exception ex)
         {
-          stopwatch.Stop();
           _logger.LogServiceException(ex, nameof(OverwriteNetworkRestrictionRulesForMainResource),
               resourceDependencyInformation);
           resultObject.Errors.Add($"An unexpected error occurred: {ex.Message}");
@@ -308,7 +297,6 @@ namespace DynamicAllowListingLib.Services
 
     public async Task<ResultObject> CheckProvisioningSucceeded(ResourceDependencyInformation resourceDependencyInformation)
     {
-      var stopwatch = Stopwatch.StartNew();
       var resultObject = new ResultObject();
       var resourceId = resourceDependencyInformation.ResourceId ?? "Unknown";
 
@@ -347,14 +335,10 @@ namespace DynamicAllowListingLib.Services
               _logger.LogProvisioningCheckPassed(azureResource.Id ?? "Unknown", provisioningState);
             }
           }
-
-          stopwatch.Stop();
           _logger.LogServiceOperationComplete(nameof(CheckProvisioningSucceeded),
               resourceId, !resultObject.Errors.Any());
         }
-        catch (Exception ex)
-        {
-          stopwatch.Stop();
+        catch (Exception ex) { 
           _logger.LogServiceException(ex, nameof(CheckProvisioningSucceeded),
               resourceDependencyInformation);
           resultObject.Errors.Add($"An unexpected error occurred: {ex.Message}");
@@ -366,7 +350,6 @@ namespace DynamicAllowListingLib.Services
 
     public async Task<HashSet<ResourceDependencyInformation>> GetOverwriteConfigsForAppServicePlanScale(string appServicePlanResourceId)
     {
-      var stopwatch = Stopwatch.StartNew();
       var configsToOverwrite = new HashSet<ResourceDependencyInformation>();
 
       using (_logger.BeginOperationScope(nameof(GetOverwriteConfigsForAppServicePlanScale), appServicePlanResourceId))
@@ -411,16 +394,11 @@ namespace DynamicAllowListingLib.Services
             var outboundConfigs = await GetConfigsForResources(resourceDependencyInformation.AllowOutbound.ResourceIds);
             configsToOverwrite.UnionWith(outboundConfigs);
           }
-
-          stopwatch.Stop();
           _logger.LogServiceOperationComplete(nameof(GetOverwriteConfigsForAppServicePlanScale),
               appServicePlanResourceId, true);
-
-          LogSlowOperationIfNeeded(nameof(GetOverwriteConfigsForAppServicePlanScale));
         }
         catch (Exception ex)
         {
-          stopwatch.Stop();
           _logger.LogServiceOperationFailed(ex, nameof(GetOverwriteConfigsForAppServicePlanScale),
               appServicePlanResourceId);
         }
@@ -431,7 +409,6 @@ namespace DynamicAllowListingLib.Services
 
     public async Task<HashSet<ResourceDependencyInformation>> GetOverwriteConfigsWhenWebAppDeleted(string deletedWebAppResourceId)
     {
-      var stopwatch = Stopwatch.StartNew();
       var configsToOverwrite = new HashSet<ResourceDependencyInformation>();
 
       using (_logger.BeginOperationScope(nameof(GetOverwriteConfigsWhenWebAppDeleted), deletedWebAppResourceId))
@@ -462,14 +439,11 @@ namespace DynamicAllowListingLib.Services
 
             configsToOverwrite.Add(resourceDependencyInformation);
           }
-
-          stopwatch.Stop();
           _logger.LogServiceOperationComplete(nameof(GetOverwriteConfigsWhenWebAppDeleted),
               deletedWebAppResourceId, true);
         }
         catch (Exception ex)
         {
-          stopwatch.Stop();
           _logger.LogServiceOperationFailed(ex, nameof(GetOverwriteConfigsWhenWebAppDeleted),
               deletedWebAppResourceId);
         }
@@ -480,7 +454,6 @@ namespace DynamicAllowListingLib.Services
 
     public async Task<HashSet<ResourceDependencyInformation>> GetOutboundOverwriteConfigs(ResourceDependencyInformation resourceDependencyInformation)
     {
-      var stopwatch = Stopwatch.StartNew();
       var configsToBeOverwritten = new HashSet<ResourceDependencyInformation>();
       var resourceId = resourceDependencyInformation.ResourceId ?? "Unknown";
 
@@ -499,14 +472,12 @@ namespace DynamicAllowListingLib.Services
           if (!outboundResources.Any())
           {
             _logger.LogInformation("No outbound resources found for ResourceId: {ResourceId}", resourceId);
-            stopwatch.Stop();
             return configsToBeOverwritten;
           }
 
           var configs = await GetConfigsForResources(outboundResources);
           configsToBeOverwritten.UnionWith(configs);
 
-          stopwatch.Stop();
           _logger.LogServiceOperationComplete(nameof(GetOutboundOverwriteConfigs),
               resourceId, true);
 
@@ -516,7 +487,6 @@ namespace DynamicAllowListingLib.Services
         }
         catch (Exception ex)
         {
-          stopwatch.Stop();
           _logger.LogServiceException(ex, nameof(GetOutboundOverwriteConfigs),
               resourceDependencyInformation);
         }

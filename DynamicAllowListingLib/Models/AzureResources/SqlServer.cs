@@ -269,9 +269,13 @@ namespace DynamicAllowListingLib.Models.AzureResources
       var properties = new SqlProperties();
 
       string firewallurl = $"https://management.azure.com{Id}/firewallRules?api-version=2021-11-01";
-      string firewallResponse = await restHelper.DoGET(firewallurl);
-      var existingFirewallRules = JsonConvert.DeserializeObject<SqlServerFirewallRulesResponse>(firewallResponse);
-
+      string? firewallResponse = await restHelper.DoGET(firewallurl);
+      SqlServerFirewallRulesResponse? existingFirewallRules = null;
+      if (!string.IsNullOrEmpty(firewallResponse))
+      {
+        existingFirewallRules = JsonConvert.DeserializeObject<SqlServerFirewallRulesResponse>(firewallResponse);
+      }
+      
       // Validate firewall rules existence
       if (existingFirewallRules?.Value == null)
       {
@@ -283,8 +287,12 @@ namespace DynamicAllowListingLib.Models.AzureResources
       }
 
       string vneturl = $"https://management.azure.com{Id}/virtualNetworkRules?api-version=2021-11-01";
-      string vnetResponse = await restHelper.DoGET(vneturl);
-      var existingVNetRules = JsonConvert.DeserializeObject<SqlServerVNetRulesResponse>(vnetResponse);
+      string? vnetResponse = await restHelper.DoGET(vneturl);
+      SqlServerVNetRulesResponse? existingVNetRules = null;
+      if (!string.IsNullOrEmpty(vnetResponse))
+      {
+        existingVNetRules = JsonConvert.DeserializeObject<SqlServerVNetRulesResponse>(vnetResponse);
+      }
 
       // Validate virtual network rules existence
       // Validate virtual network rules existence

@@ -80,7 +80,13 @@ namespace DynamicAllowListingLib.Models.AzureResources
       try
       {
         // Make the GET request to fetch KeyVault properties
-        string response = await restHelper.DoGET(url);
+        string? response = await restHelper.DoGET(url);
+        if (string.IsNullOrEmpty(response))
+        {
+          string errorMessage = $"Failed to fetch Keyvault properties for resource {Id}. Response was null or empty.";
+          logger.LogError(errorMessage);
+          throw new NoNullAllowedException(errorMessage);
+        }
         // Deserialize the response into KeyVaultArmProperties object
         keyvaultArmProperties = JsonConvert.DeserializeObject<KeyVaultArmProperties>(response);
         // If the response is null, log the error and throw an exception

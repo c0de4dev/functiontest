@@ -75,7 +75,13 @@ namespace DynamicAllowListingLib.Models.AzureResources
       {
         string url = $"https://management.azure.com{Id}?api-version=2021-04-15";
         // Make the GET request
-        string response = await restHelper.DoGET(url);
+        string? response = await restHelper.DoGET(url);
+        if (string.IsNullOrEmpty(response))
+        {
+          string errorMessage = $"Failed to fetch Keyvault properties for resource {Id}. Response was null or empty.";
+          logger.LogError(errorMessage);
+          throw new NoNullAllowedException(errorMessage);
+        }
         // Check if the response is null or empty
         if (string.IsNullOrEmpty(response))
         {
@@ -230,7 +236,13 @@ namespace DynamicAllowListingLib.Models.AzureResources
       try
       {
         // Make the GET request to fetch subnet information
-        string response = await restHelper.DoGET(url);
+        string? response = await restHelper.DoGET(url);
+        if (string.IsNullOrEmpty(response))
+        {
+          string errorMessage = $"Failed to fetch Keyvault properties for resource {Id}. Response was null or empty.";
+          logger.LogError(errorMessage);
+          throw new NoNullAllowedException(errorMessage);
+        }
         // Deserialize the response into the AzSubnet object
         subnet = JsonConvert.DeserializeObject<AzSubnet>(response);
         // If the response is null, log the error and throw an exception
