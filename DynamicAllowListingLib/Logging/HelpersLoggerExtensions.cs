@@ -275,6 +275,72 @@ namespace DynamicAllowListingLib.Logging
     #endregion
 
     // ============================================================
+    // Add these methods to DynamicAllowListingLib/Logging/HelpersLoggerExtensions.cs
+    // in the RestHelper section, after Access Token Operations (EventIds 8080-8099)
+    // ============================================================
+
+    #region Retry and Throttling Operations (EventIds 8080-8099)
+
+    [LoggerMessage(
+        EventId = 8080,
+        Level = LogLevel.Information,
+        Message = "Quota remaining | RemainingQuota: {RemainingQuota}")]
+    public static partial void LogQuotaRemaining(
+        this ILogger logger,
+        int remainingQuota);
+
+    [LoggerMessage(
+        EventId = 8081,
+        Level = LogLevel.Information,
+        Message = "Quota resets after | ResetsAfter: {ResetsAfter}")]
+    public static partial void LogQuotaResetsAfter(
+        this ILogger logger,
+        TimeSpan resetsAfter);
+
+    [LoggerMessage(
+        EventId = 8082,
+        Level = LogLevel.Debug,
+        Message = "RetryAfter header in response is null | Returning ServerWaitDuration as Zero")]
+    public static partial void LogRetryAfterHeaderNull(
+        this ILogger logger);
+
+    [LoggerMessage(
+        EventId = 8083,
+        Level = LogLevel.Information,
+        Message = "Server wait duration calculated | WaitDuration: {WaitDuration}")]
+    public static partial void LogServerWaitDuration(
+        this ILogger logger,
+        TimeSpan waitDuration);
+
+    [LoggerMessage(
+        EventId = 8084,
+        Level = LogLevel.Warning,
+        Message = "Rate limit encountered | Url: {Url} | QuotaRemaining: {QuotaRemaining}")]
+    public static partial void LogRateLimitEncountered(
+        this ILogger logger,
+        string url,
+        int quotaRemaining);
+
+    [LoggerMessage(
+        EventId = 8085,
+        Level = LogLevel.Information,
+        Message = "Throttling delay applied | DelayMs: {DelayMs}ms | Reason: {Reason}")]
+    public static partial void LogThrottlingDelay(
+        this ILogger logger,
+        double delayMs,
+        string reason);
+
+    [LoggerMessage(
+    EventId = 8064,
+    Level = LogLevel.Debug,
+    Message = "Access token retrieved successfully | BaseUrl: {BaseUrl}")]
+    public static partial void LogAccessTokenRetrieved(
+    this ILogger logger,
+    string baseUrl);
+    #endregion
+
+
+    // ============================================================
     // AzureResourceJsonConvertor (EventIds 8100-8149)
     // ============================================================
 

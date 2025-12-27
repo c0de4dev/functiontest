@@ -1,32 +1,35 @@
 using DynamicAllowListingLib;
+using DynamicAllowListingLib.Logging;
 using DynamicAllowListingLib.Models;
 using DynamicAllowListingLib.Services;
 using DynamicAllowListingLib.SettingsValidation;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.WebJobs;
-using System.Collections.Generic;
-using Microsoft.ApplicationInsights;
-using Microsoft.ApplicationInsights.DataContracts;
+using AllowListingAzureFunction.Logging;
 
 namespace AllowListingAzureFunction
 {
   public class WebAppDeletedEventHandler
   {
     private readonly IDynamicAllowListingService _dynamicAllowListingHelper;
+    private readonly ICustomTelemetryService _telemetry;
     private readonly ILogger<WebAppDeletedEventHandler> _logger;
-    private readonly TelemetryClient _telemetryClient;
+    private readonly TimeProvider _timeProvider;
 
-    public WebAppDeletedEventHandler(IDynamicAllowListingService dynamicAllowListingHelper, 
-    ILogger<WebAppDeletedEventHandler> logger,
-    TelemetryClient telemetryClient)
+    public WebAppDeletedEventHandler(
+        IDynamicAllowListingService dynamicAllowListingHelper,
+        ICustomTelemetryService telemetry,
+        ILogger<WebAppDeletedEventHandler> logger,
+        TimeProvider? timeProvider = null)
     {
       _dynamicAllowListingHelper = dynamicAllowListingHelper;
+      _telemetry = telemetry;
       _logger = logger;
-      _telemetryClient = telemetryClient;
+      _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     [Function("WebAppDeletedEventHandler")]
@@ -34,65 +37,78 @@ namespace AllowListingAzureFunction
     public async Task<ResourceDependencyInformation[]> Run(
         [QueueTrigger("webapp-deleted", Connection = "StorageQueueStorageAccountConnectionString")] string queueItem)
     {
-      var operationId = Guid.NewGuid().ToString(); // Unique operation ID for tracing
+      var operationId = Guid.NewGuid().ToString();
+      var overwriteQueue = new List<ResourceDependencyInformation>();
 
-      // Start logging and tracking the operation with telemetry
-      using (var operation = _telemetryClient.StartOperation<RequestTelemetry>("WebAppDeletedEventHandler", operationId))
+      // *** CORRELATION FIX: Set correlation context for queue trigger ***
+      CorrelationContext.SetCorrelationId(operationId);
+
+      using var loggerScope = _logger.BeginFunctionScope(nameof(WebAppDeletedEventHandler), operationId);
+      using var operation = _telemetry.StartOperation("WebAppDeletedEventHandler",
+          new Dictionary<string, string> { ["OperationId"] = operationId });
+
+      try
       {
-        _telemetryClient.Context.Operation.Id = operationId;
-        _telemetryClient.TrackTrace($"Starting WebAppDeletedEventHandler for OperationId: {operationId}", SeverityLevel.Information);
+        _logger.LogQueueTriggerStarted(nameof(WebAppDeletedEventHandler), operationId, "WebAppDeleted");
+        _logger.LogProcessingQueueMessage("WebAppDeleted", queueItem);
 
-        var overwriteQueue = new List<ResourceDependencyInformation>();
-        try
+        var eventGridData = JsonConvert.DeserializeObject<EventGridData>(queueItem);
+
+        // Null check for resourceId
+        if (eventGridData?.ResourceId == null)
         {
-          var eventGridData = JsonConvert.DeserializeObject<EventGridData>(queueItem);
-
-          // Null check for resourceId
-          if (eventGridData?.ResourceId == null)
-          {
-            _telemetryClient.TrackTrace($"Null ResourceId in queue item. OperationId: {operationId}, QueueItem: {queueItem}", SeverityLevel.Warning);
-            return overwriteQueue.ToArray();
-          }
-
-          // Validate the resourceId
-          if (!ValidationHelper.IsValidWebSiteId(eventGridData.ResourceId))
-          {
-            _telemetryClient.TrackTrace($"Invalid ResourceId in queue item. OperationId: {operationId}, QueueItem: {queueItem}", SeverityLevel.Warning);
-            return overwriteQueue.ToArray();
-          }
-
-          // Log successful resource detection
-          _telemetryClient.TrackTrace($"Resource deletion detected for resourceId: {eventGridData.ResourceId}. OperationId: {operationId}", SeverityLevel.Information);
-
-          // Get the configs to overwrite based on the resourceId
-          var configsToOverwrite = await _dynamicAllowListingHelper.GetOverwriteConfigsWhenWebAppDeleted(eventGridData.ResourceId);
-
-          foreach (var resourceDependencyInformation in configsToOverwrite)
-          {
-            overwriteQueue.Add(resourceDependencyInformation);
-            _telemetryClient.TrackTrace($"{resourceDependencyInformation.ResourceName} config added to overwrite queue. OperationId: {operationId}", SeverityLevel.Information);
-          }
-        }
-        catch (Exception ex)
-        {
-          _telemetryClient.TrackException(ex, new Dictionary<string, string>{
-                              { "QueueItem", queueItem },
-                              { "OperationId", operationId }
-                          });
-
-          // Log the error and provide meaningful feedback
-          _telemetryClient.TrackTrace($"Error occurred while processing queue item. OperationId: {operationId}, Error: {ex.Message}", SeverityLevel.Error);
+          _logger.LogOperationErrors(operationId, $"Null ResourceId in queue item: {queueItem}");
+          operation.SetFailed("Null ResourceId");
           return overwriteQueue.ToArray();
         }
-        finally
+
+        operation.AddProperty("ResourceId", eventGridData.ResourceId);
+
+        // Validate the resourceId
+        if (!ValidationHelper.IsValidWebSiteId(eventGridData.ResourceId))
         {
-          // Stop the operation after processing
-          _telemetryClient.TrackTrace($"Finished processing WebAppDeletedEventHandler. OperationId: {operationId}", SeverityLevel.Information);
+          _logger.LogOperationCompletedWithErrors(operationId, 1);
+          _logger.LogOperationErrors(operationId, $"Invalid WebSite ResourceId: {eventGridData.ResourceId}");
+          _logger.LogQueueTriggerCompleted(nameof(WebAppDeletedEventHandler), operationId, true);
+          operation.SetSuccess();
+          return overwriteQueue.ToArray();
         }
 
-        return overwriteQueue.ToArray();
-      }
-    }
+        _logger.LogProcessingResource(nameof(WebAppDeletedEventHandler), eventGridData.ResourceId, "WebApp");
 
+        // Get configs to overwrite after web app deletion
+        var configs = await _dynamicAllowListingHelper.GetOverwriteConfigsWhenWebAppDeleted(eventGridData.ResourceId);
+        _logger.LogFetchedDependencyConfigs(configs.Count, operationId);
+
+        foreach (var config in configs)
+        {
+          overwriteQueue.Add(config);
+          _logger.LogAddingConfigToQueue(config.ResourceName ?? "Unknown");
+        }
+
+        operation.AddMetric("ConfigsQueued", overwriteQueue.Count);
+        _logger.LogQueueTriggerCompleted(nameof(WebAppDeletedEventHandler), operationId, true);
+        operation.SetSuccess();
+      }
+      catch (Exception ex)
+      {
+        _logger.LogQueueTriggerFailed(ex, nameof(WebAppDeletedEventHandler), operationId);
+        operation.SetFailed(ex.Message);
+        _telemetry.TrackException(ex, new Dictionary<string, string>
+        {
+          ["OperationId"] = operationId,
+          ["Function"] = nameof(WebAppDeletedEventHandler),
+          ["QueueItem"] = queueItem
+        });
+        throw;
+      }
+      finally
+      {
+        // *** CORRELATION FIX: Clear at end of function ***
+        CorrelationContext.Clear();
+      }
+
+      return overwriteQueue.ToArray();
+    }
   }
 }

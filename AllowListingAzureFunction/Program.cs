@@ -1,6 +1,3 @@
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration;
 using DynamicAllowListingLib;
 using DynamicAllowListingLib.Helpers;
 using DynamicAllowListingLib.Models;
@@ -12,13 +9,18 @@ using DynamicAllowListingLib.ServiceTagManagers.Model;
 using DynamicAllowListingLib.ServiceTagManagers.NewDayManager;
 using DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidator;
 using DynamicAllowListingLib.SettingsValidation.ResourceDependencyValidator;
+using Microsoft.ApplicationInsights.WorkerService;
+using Microsoft.Azure.Cosmos;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.Linq;
-using Microsoft.Azure.Cosmos;
-using Microsoft.ApplicationInsights.WorkerService;
+using DynamicAllowListingLib.Logging;
 
 class Program
 {
@@ -35,6 +37,31 @@ class Program
 
           services.AddApplicationInsightsTelemetryWorkerService((ApplicationInsightsServiceOptions options) => options.ConnectionString = appInsightsConnectionString);
           services.ConfigureFunctionsApplicationInsights();
+
+          // ========================================
+          // ENHANCED LOGGING FROM LIBRARY (CRITICAL!)
+          // ========================================
+          services.AddDynamicAllowListingLogging(options =>
+          {
+            options.EnableApplicationInsights = true;
+            options.MinimumLogLevel = LogLevel.Information;
+            options.SlowOperationThresholdMs = 5000;
+            options.VerySlowOperationThresholdMs = 10000;
+          });
+
+          // ========================================
+          // TIME PROVIDER FOR HIGH-RESOLUTION TIMING
+          // ========================================
+          services.AddSingleton(TimeProvider.System);
+
+          // ========================================
+          // ACTIVITY SOURCE FOR DISTRIBUTED TRACING
+          // ========================================
+          services.AddSingleton(new ActivitySource("DynamicAllowListing", "1.0.0"));
+
+          // Configure ActivitySource listener for telemetry correlation
+          Activity.DefaultIdFormat = ActivityIdFormat.W3C;
+          Activity.ForceDefaultIdFormat = true;
 
 
           // Application Insights
@@ -61,30 +88,18 @@ class Program
           services.AddScoped<IDynamicAllowListingService, DynamicAllowListingService>();
 
           // Register CosmosClient as a singleton
-          services.AddSingleton((s) =>
+          services.AddSingleton(sp =>
           {
-            var cosmosDbConnectionString = configuration["CosmosDBConnectionString"];
-            if (string.IsNullOrEmpty(cosmosDbConnectionString))
-            {
-              throw new Exception("CosmosDBConnectionString was found to be null or empty.");
-            }
+            var cosmosDbConnectionString = configuration["CosmosDBConnectionString"]
+                ?? throw new InvalidOperationException("CosmosDBConnectionString was found to be null or empty.");
             return new CosmosClient(cosmosDbConnectionString);
           });
 
-          // Register CosmosClient as a singleton
-          services.AddSingleton((s) =>
+          services.AddSingleton(sp =>
           {
-            var cosmosDbConnectionString = configuration["CosmosDBConnectionString"];
-            if (string.IsNullOrEmpty(cosmosDbConnectionString))
-            {
-              throw new Exception("CosmosDBConnectionString was found to be null or empty.");
-            }
-             
+            var cosmosDbConnectionString = configuration["CosmosDBConnectionString"]
+                ?? throw new InvalidOperationException("CosmosDBConnectionString was found to be null or empty.");
             var databaseName = configuration["DatabaseName"] ?? Constants.DatabaseName;
-            if (string.IsNullOrEmpty(databaseName))
-            {
-              throw new Exception("DatabaseName was found to be null or empty.");
-            }
 
             return new CosmosDbSettings
             {
@@ -127,17 +142,28 @@ class Program
 
           services.AddScoped<IWebClient, NewDayWebClient>();
         })
-        .ConfigureLogging(logging =>
+        .ConfigureLogging((context, logging) =>
         {
+          // Remove the default Application Insights filter rule
           logging.Services.Configure<LoggerFilterOptions>(options =>
           {
-            LoggerFilterRule? defaultRule = options.Rules.FirstOrDefault(rule => rule.ProviderName
-                == "Microsoft.Extensions.Logging.ApplicationInsights.ApplicationInsightsLoggerProvider");
+            var defaultRule = options.Rules.FirstOrDefault(rule =>
+                rule.ProviderName == "Microsoft.Extensions.Logging.ApplicationInsights.ApplicationInsightsLoggerProvider");
             if (defaultRule is not null)
             {
               options.Rules.Remove(defaultRule);
             }
           });
+
+          // ========================================
+          // ENHANCED LOGGING CONFIGURATION
+          // ========================================
+          logging.AddFilter("DynamicAllowListingLib", LogLevel.Information);
+          logging.AddFilter("AllowListingAzureFunction", LogLevel.Information);
+
+          // Enable console logging for local development
+          logging.AddConsole();
+          logging.AddDebug();
         })
         .Build();
 

@@ -1,108 +1,123 @@
 ﻿using DynamicAllowListingLib;
+using DynamicAllowListingLib.Logging;
 using DynamicAllowListingLib.SettingsValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.ApplicationInsights;
-using Microsoft.ApplicationInsights.DataContracts;
-using System;
-using System.Collections.Generic;
+using AllowListingAzureFunction.Logging;
 
 namespace AllowListingAzureFunction
 {
   public class ValidateResourceDependencyInformationFunction
   {
-    private readonly ISettingValidator<ResourceDependencyInformation> _resourceDependencyInformationValidator;
-    private readonly TelemetryClient _telemetryClient;
+    private const string FunctionName = "ValidateResourceDependencyInformation";
 
-    public ValidateResourceDependencyInformationFunction(ISettingValidator<ResourceDependencyInformation> resourceDependencyInformationValidator,
-    TelemetryClient telemetryClient)
+    private readonly ISettingValidator<ResourceDependencyInformation> _resourceDependencyInformationValidator;
+    private readonly ICustomTelemetryService _telemetry;
+    private readonly ILogger<ValidateResourceDependencyInformationFunction> _logger;
+
+    public ValidateResourceDependencyInformationFunction(
+        ISettingValidator<ResourceDependencyInformation> resourceDependencyInformationValidator,
+        ICustomTelemetryService telemetry,
+        ILogger<ValidateResourceDependencyInformationFunction> logger)
     {
       _resourceDependencyInformationValidator = resourceDependencyInformationValidator;
-      _telemetryClient = telemetryClient;
+      _telemetry = telemetry;
+      _logger = logger;
     }
 
-    [Function("ValidateResourceDependencyInformation")]
+    [Function(FunctionName)]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequest req)
     {
-      var operationId = Guid.NewGuid().ToString(); // Unique operation ID for tracing
+      var operationId = Guid.NewGuid().ToString();
 
-      // Start logging and tracking the operation with telemetry
-      using (var operation = _telemetryClient.StartOperation<RequestTelemetry>("ValidateResourceDependencyInformation", operationId))
+      // *** CORRELATION FIX: Set correlation context for HTTP trigger ***
+      CorrelationContext.SetCorrelationId(operationId);
+
+      using var loggerScope = _logger.BeginFunctionScope(FunctionName, operationId);
+      using var operation = _telemetry.StartOperation(FunctionName,
+          new Dictionary<string, string> { ["OperationId"] = operationId });
+
+      try
       {
-        _telemetryClient.Context.Operation.Id = operationId;
-        _telemetryClient.TrackTrace($"Starting resource dependency validation. OperationId: {operationId}", SeverityLevel.Information);
+        _logger.LogHttpFunctionStarted(FunctionName, operationId, req.Method);
+        _logger.LogHttpRequestReceived(FunctionName, req.Method, req.Path);
 
-        try
+        // Read request body
+        _logger.LogReadingRequestBody(operationId);
+        string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+
+        if (string.IsNullOrWhiteSpace(requestBody))
         {
-          // Get request string
-          string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-
-          if (string.IsNullOrWhiteSpace(requestBody))
-          {
-            // Track the empty request scenario
-            _telemetryClient.TrackTrace($"Empty request body received. OperationId: {operationId}", SeverityLevel.Warning);
-            return new BadRequestObjectResult("Request body is empty.");
-          }
-
-          // Parse JSON to object
-          var parseJsonResult = requestBody.TryParseJson(out ResourceDependencyInformation model);
-          if (!parseJsonResult.Success)
-          {
-            // Track parsing failure with telemetry
-            _telemetryClient.TrackTrace($"JSON parsing failed. OperationId: {operationId}.", SeverityLevel.Warning);
-            return new UnprocessableEntityObjectResult(parseJsonResult);
-          }
-
-          // Log successful parsing
-          _telemetryClient.TrackTrace($"Successfully parsed JSON. Model: {model?.ToString()}", SeverityLevel.Information);
-
-          // Check if the parsed model is null before validating
-          if (model == null)
-          {
-            // Track the null model scenario
-            _telemetryClient.TrackTrace($"Parsed model is null. OperationId: {operationId}", SeverityLevel.Warning);
-            return new UnprocessableEntityObjectResult("Parsed model is null.");
-          }
-
-          // Run validation rules
-          var validationResults = _resourceDependencyInformationValidator.Validate(model);
-          if (!validationResults.Success)
-          {
-            // Track validation errors with details
-            _telemetryClient.TrackTrace($"Validation failed. OperationId: {operationId}. Errors: {string.Join(", ", validationResults.Errors)}", SeverityLevel.Warning);
-            return new UnprocessableEntityObjectResult(validationResults);
-          }
-
-          // Successful validation
-          _telemetryClient.TrackTrace($"Validation succeeded. OperationId: {operationId}", SeverityLevel.Information);
-          return new OkObjectResult(validationResults);
+          _logger.LogEmptyRequestBody(operationId);
+          _logger.LogHttpFunctionErrorResponse(FunctionName, operationId, 400, "Empty request body");
+          operation.SetFailed("Empty request body");
+          return new BadRequestObjectResult("Request body is empty.");
         }
-        catch (Exception exception)
+
+        _logger.LogRequestBodyReceived(operationId, requestBody.Length);
+
+        // Parse JSON
+        _logger.LogParsingRequestJson(operationId);
+        var parseJsonResult = requestBody.TryParseJson(out ResourceDependencyInformation model);
+
+        if (!parseJsonResult.Success)
         {
-          _telemetryClient.TrackException(exception, new Dictionary<string, string>{
-                              { "OperationId", operationId }
-                          });
-
-          // Track the error in telemetry
-          _telemetryClient.TrackTrace($"Error occurred during resource dependency validation. OperationId: {operationId}. Exception: {exception.Message}", SeverityLevel.Error);
-
-          // Return a generic error response
-          return new ObjectResult(new { message = "An error occurred while validating the resource dependency information." })
-          {
-            StatusCode = 500
-          };
+          _logger.LogJsonParsingFailed(operationId, string.Join(", ", parseJsonResult.Errors));
+          operation.SetFailed("JSON parsing failed");
+          return new UnprocessableEntityObjectResult(parseJsonResult);
         }
-        finally
+
+        if (model == null)
         {
-          // Final telemetry operation stop
-          _telemetryClient.TrackTrace($"Finished resource dependency validation. OperationId: {operationId}", SeverityLevel.Information);
+          _logger.LogJsonParsingFailed(operationId, "Parsed model is null");
+          operation.SetFailed("Parsed model is null");
+          return new BadRequestObjectResult("Parsed model is null.");
         }
+
+        _logger.LogJsonParsedSuccessfully(operationId, model.ResourceName ?? "Unknown");
+        operation.AddProperty("ResourceName", model.ResourceName ?? "Unknown");
+
+        // Validate model
+        _logger.LogValidatingModel(operationId);
+        var validationResult = _resourceDependencyInformationValidator.Validate(model);
+
+        if (!validationResult.Success)
+        {
+          _logger.LogModelValidationFailed(operationId, validationResult.Errors.Count);
+          operation.SetFailed("Validation failed");
+          return new BadRequestObjectResult(validationResult);
+        }
+
+        _logger.LogModelValidationSucceeded(operationId, model.ResourceName ?? "Unknown");
+        _logger.LogHttpFunctionCompleted(FunctionName, operationId, 200, (long)operation.Elapsed.TotalMilliseconds);
+        operation.SetSuccess();
+
+        return new OkObjectResult(validationResult);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogHttpFunctionFailed(ex, FunctionName, operationId);
+        operation.SetFailed(ex.Message);
+        _telemetry.TrackException(ex, new Dictionary<string, string>
+        {
+          ["OperationId"] = operationId,
+          ["Function"] = FunctionName
+        });
+
+        return new StatusCodeResult(StatusCodes.Status500InternalServerError);
+      }
+      finally
+      {
+        // *** CORRELATION FIX: Clear at end of function ***
+        CorrelationContext.Clear();
       }
     }
-
   }
 }

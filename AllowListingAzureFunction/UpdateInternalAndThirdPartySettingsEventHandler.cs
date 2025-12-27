@@ -47,6 +47,9 @@ namespace AllowListingAzureFunction
       var operationId = Guid.NewGuid().ToString();
       var documentCount = azureSubscriptionDocs?.Count ?? 0;
 
+      // *** CORRELATION FIX: Set correlation context for Cosmos DB trigger ***
+      CorrelationContext.SetCorrelationId(operationId);
+
       using var loggerScope = _logger.BeginCosmosTriggerScope("ListenAzureSubscriptionChangeEvents", operationId, documentCount);
       using var operation = _telemetry.StartOperation("ListenAzSubscriptionEvents",
           new Dictionary<string, string> { ["OperationId"] = operationId, ["DocumentCount"] = documentCount.ToString() });
@@ -95,6 +98,11 @@ namespace AllowListingAzureFunction
         });
         throw;
       }
+      finally
+      {
+        // *** CORRELATION FIX: Clear at end of function ***
+        CorrelationContext.Clear();
+      }
 
       return queueMessages.ToArray();
     }
@@ -112,6 +120,9 @@ namespace AllowListingAzureFunction
       var queueMessages = new List<ResourceDependencyInformation>();
       var operationId = Guid.NewGuid().ToString();
       var documentCount = serviceTagDocs?.Count ?? 0;
+
+      // *** CORRELATION FIX: Set correlation context for Cosmos DB trigger ***
+      CorrelationContext.SetCorrelationId(operationId);
 
       using var loggerScope = _logger.BeginCosmosTriggerScope("ListenServiceTagsChangeEvents", operationId, documentCount);
       using var operation = _telemetry.StartOperation("ListenServiceTagEvents",
@@ -160,6 +171,11 @@ namespace AllowListingAzureFunction
           ["Function"] = "ListenServiceTagsChangeEvents"
         });
         throw;
+      }
+      finally
+      {
+        // *** CORRELATION FIX: Clear at end of function ***
+        CorrelationContext.Clear();
       }
 
       return queueMessages.ToArray();

@@ -1,18 +1,18 @@
+using AllowListingAzureFunction.Logging;
 using DynamicAllowListingLib;
 using DynamicAllowListingLib.Logging;
+using DynamicAllowListingLib.Services;
 using DynamicAllowListingLib.SettingsValidation;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.DurableTask.Client;
 using Microsoft.DurableTask;
-using System.Net;
-using DynamicAllowListingLib.Services;
+using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
-using System.Threading.Tasks;
 using System;
-using System.IO;
 using System.Collections.Generic;
-using AllowListingAzureFunction.Logging;
+using System.IO;
+using System.Net;
+using System.Threading.Tasks;
 
 namespace AllowListingAzureFunction
 {
@@ -44,6 +44,9 @@ namespace AllowListingAzureFunction
         [DurableClient] DurableTaskClient starter)
     {
       var operationId = Guid.NewGuid().ToString();
+
+      // *** CORRELATION FIX: Set correlation context for library layer ***
+      CorrelationContext.SetCorrelationId(operationId);
 
       using var loggerScope = _logger.BeginFunctionScope(nameof(UpdateNetworkRestrictionsUsingConfig), operationId);
       using var operation = _telemetry.StartOperation("UpdateNetworkRestrictionsUsingConfig",
@@ -150,6 +153,11 @@ namespace AllowListingAzureFunction
 
         return req.CreateResponse(HttpStatusCode.InternalServerError);
       }
+      finally
+      {
+        // *** CORRELATION FIX: Clear correlation context at end of request ***
+        CorrelationContext.Clear();
+      }
     }
 
     [Function(nameof(UpdateNetworkRestrictionsOrchestrator))]
@@ -166,7 +174,10 @@ namespace AllowListingAzureFunction
       var instanceId = context.InstanceId;
       var resultObject = new ResultObject();
 
-      // Note: Orchestrators must be deterministic - avoid non-deterministic operations like telemetry.StartOperation
+      // *** CORRELATION FIX: Orchestrators inherit correlation from parent via InvocationID ***
+      // Note: Orchestrators must be deterministic - we pass correlation through parameters
+      // The correlation context will be set in each activity function
+
       using var loggerScope = _logger.BeginOrchestratorScope(nameof(UpdateNetworkRestrictionsOrchestrator), instanceId, parameters.InvocationID);
 
       try
@@ -175,7 +186,7 @@ namespace AllowListingAzureFunction
 
         var activityParams = new OrchestrationParameters
         {
-          InvocationID = instanceId,
+          InvocationID = parameters.InvocationID, // Pass parent correlation ID
           InputData = parameters.InputData
         };
 
@@ -221,7 +232,7 @@ namespace AllowListingAzureFunction
           _logger.LogCallingActivity(OverwriteNetworkRestrictionRules.OverwriteNetworkRestrictionsActivityFunction, instanceId, config.ResourceName ?? "Unknown");
           tasks.Add(context.CallActivityAsync<ResultObject>(
               OverwriteNetworkRestrictionRules.OverwriteNetworkRestrictionsActivityFunction,
-              new OrchestrationParameters { InvocationID = instanceId, InputData = config }));
+              new OrchestrationParameters { InvocationID = parameters.InvocationID, InputData = config }));
         }
 
         // Fan-in
@@ -267,6 +278,9 @@ namespace AllowListingAzureFunction
       var resourceInfo = parameters.InputData;
       var instanceId = parameters.InvocationID;
       var result = new ResultObject();
+
+      // *** CORRELATION FIX: Set correlation context from parent InvocationID ***
+      CorrelationContext.SetCorrelationId(instanceId);
 
       using var loggerScope = _logger.BeginActivityScope(nameof(UpdateDbAndUnmanagedResources), instanceId, context.InvocationId, resourceInfo.ResourceName);
       using var operation = _telemetry.StartOperation("UpdateDbAndUnmanagedResources",
@@ -317,6 +331,11 @@ namespace AllowListingAzureFunction
         result.Errors.Add($"Exception: {ex.Message}");
         return result;
       }
+      finally
+      {
+        // *** CORRELATION FIX: Clear at end of activity ***
+        CorrelationContext.Clear();
+      }
     }
 
     [Function(nameof(GetOverwriteConfigs))]
@@ -333,6 +352,9 @@ namespace AllowListingAzureFunction
       var resourceInfo = parameters.InputData;
       var instanceId = parameters.InvocationID;
       var output = new OverriteConfigOutput { OverwriteConfigResult = new ResultObject() };
+
+      // *** CORRELATION FIX: Set correlation context from parent InvocationID ***
+      CorrelationContext.SetCorrelationId(instanceId);
 
       using var loggerScope = _logger.BeginActivityScope(nameof(GetOverwriteConfigs), instanceId, context.InvocationId, resourceInfo.ResourceName);
       using var operation = _telemetry.StartOperation("GetOverwriteConfigs",
@@ -368,6 +390,11 @@ namespace AllowListingAzureFunction
         operation.SetFailed(ex.Message);
         _telemetry.TrackException(ex, new Dictionary<string, string> { ["InstanceId"] = instanceId, ["Activity"] = nameof(GetOverwriteConfigs) });
         output.OverwriteConfigResult.Errors.Add($"Exception: {ex.Message}");
+      }
+      finally
+      {
+        // *** CORRELATION FIX: Clear at end of activity ***
+        CorrelationContext.Clear();
       }
 
       return output;

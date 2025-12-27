@@ -5,17 +5,46 @@
     "fileLoggingMode": "always",
     "logLevel": {
       "AllowListingAzureFunction": "Information",
+      "AllowListingAzureFunction.Logging": "Information",
       "DynamicAllowListingLib": "Information",
-      "default": "Information",
+      "DynamicAllowListingLib.Logging": "Information",
+      "DynamicAllowListingLib.Services": "Information",
+      "default": "Warning",
       "Host.Results": "Information",
+      "Host.Aggregator": "Trace",
       "Function": "Information",
-      "Host.Aggregator": "Trace"
+      "Function.UpdateNetworkRestrictionsUsingConfig": "Information",
+      "Function.OverwriteNetworkRestrictionRules": "Information",
+      "Microsoft.Azure.Functions.Worker": "Warning",
+      "Microsoft.Azure.Cosmos": "Warning"
     },
     "applicationInsights": {
-      "samplingExcludedTypes": "Request",
+      "samplingExcludedTypes": "Request;Exception;Dependency",
       "samplingSettings": {
         "isEnabled": true,
-        "excludedTypes": "Request"
+        "excludedTypes": "Request;Exception;Dependency",
+        "maxTelemetryItemsPerSecond": 20,
+        "evaluationInterval": "01:00:00",
+        "initialSamplingPercentage": 100.0,
+        "minSamplingPercentage": 0.01
+      },
+      "enableLiveMetrics": true,
+      "enableDependencyTracking": true,
+      "enablePerformanceCountersCollection": true
+    }
+  },
+  "extensions": {
+    "cosmosDB": {
+      "connectionMode": "Direct",
+      "maxConnectionsPerEndpoint": 50
+    },
+    "durableTask": {
+      "storageProvider": {
+        "maxQueuePollingInterval": "00:00:30"
+      },
+      "tracing": {
+        "traceInputsAndOutputs": false,
+        "traceReplayEvents": false
       }
     }
   }

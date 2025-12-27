@@ -1,96 +1,130 @@
+using AllowListingAzureFunction.Logging;
 using DynamicAllowListingLib;
+using DynamicAllowListingLib.Logging;
 using DynamicAllowListingLib.ServiceTagManagers;
 using DynamicAllowListingLib.ServiceTagManagers.Model;
+using DynamicAllowListingLib.SettingsValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.ApplicationInsights;
-using Microsoft.ApplicationInsights.DataContracts;
-using Azure.Storage.Queues.Models;
-using System.Collections.Generic;
 
 namespace AllowListingAzureFunction
 {
   public class ValidateInternalAndThirdPartyServiceTagFunction
   {
+    private const string FunctionName = "ValidateInternalAndThirdPartyServiceTags";
+
     private readonly ISettingValidator<InternalAndThirdPartyServiceTagSetting> _internalAndThirdPartyServiceTagValidator;
     private readonly ISettingValidator<ResourceDependencyInformation> _resourceDependencyInformationValidator;
     private readonly ISettingLoader _settingLoader;
-    private readonly TelemetryClient _telemetryClient;
+    private readonly ICustomTelemetryService _telemetry;
+    private readonly ILogger<ValidateInternalAndThirdPartyServiceTagFunction> _logger;
 
-    public ValidateInternalAndThirdPartyServiceTagFunction(ISettingValidator<InternalAndThirdPartyServiceTagSetting> internalAndThirdPartyServiceTagValidator,
-    ISettingValidator<ResourceDependencyInformation> resourceDependencyInformationValidator,
-    ISettingLoader settingLoader,
-    TelemetryClient telemetryClient)
+    public ValidateInternalAndThirdPartyServiceTagFunction(
+        ISettingValidator<InternalAndThirdPartyServiceTagSetting> internalAndThirdPartyServiceTagValidator,
+        ISettingValidator<ResourceDependencyInformation> resourceDependencyInformationValidator,
+        ISettingLoader settingLoader,
+        ICustomTelemetryService telemetry,
+        ILogger<ValidateInternalAndThirdPartyServiceTagFunction> logger)
     {
       _internalAndThirdPartyServiceTagValidator = internalAndThirdPartyServiceTagValidator;
       _resourceDependencyInformationValidator = resourceDependencyInformationValidator;
       _settingLoader = settingLoader;
-      _telemetryClient = telemetryClient;
+      _telemetry = telemetry;
+      _logger = logger;
     }
 
-    [Function("ValidateInternalAndThirdPartyServiceTags")]
+    [Function(FunctionName)]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequest req)
     {
-      var operationId = Guid.NewGuid().ToString(); // Unique operation ID for tracing
+      var operationId = Guid.NewGuid().ToString();
 
-      // Start logging and tracking the operation with telemetry
-      using (var operation = _telemetryClient.StartOperation<RequestTelemetry>("ValidateInternalAndThirdPartyServiceTags", operationId))
+      // *** CORRELATION FIX: Set correlation context for HTTP trigger ***
+      CorrelationContext.SetCorrelationId(operationId);
+
+      using var loggerScope = _logger.BeginFunctionScope(FunctionName, operationId);
+      using var operation = _telemetry.StartOperation(FunctionName,
+          new Dictionary<string, string> { ["OperationId"] = operationId });
+
+      try
       {
-        _telemetryClient.Context.Operation.Id = operationId;
-        _telemetryClient.TrackTrace($"Starting internal and third-party service tags validation. OperationId: {operationId}", SeverityLevel.Information);
+        _logger.LogHttpFunctionStarted(FunctionName, operationId, req.Method);
+        _logger.LogHttpRequestReceived(FunctionName, req.Method, req.Path);
 
-        try
+        // Read request body
+        _logger.LogReadingRequestBody(operationId);
+        string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+
+        if (string.IsNullOrWhiteSpace(requestBody))
         {
-          string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-          if (string.IsNullOrWhiteSpace(requestBody))
-          {
-            // Track the validation failure due to empty request body
-            _telemetryClient.TrackTrace($"Empty request body received. OperationId: {operationId}", SeverityLevel.Warning);
-            return new BadRequestObjectResult("Request body is empty.");
-          }
-
-          // Load and validate the settings from the request body
-          var settingModel = await _settingLoader.LoadSettingsFromString<InternalAndThirdPartyServiceTagSetting>(requestBody);
-          var result = _internalAndThirdPartyServiceTagValidator.Validate(settingModel);
-
-          // If validation fails, return UnprocessableEntity with telemetry logging
-          if (!result.Success)
-          {
-            _telemetryClient.TrackTrace($"Validation failed. OperationId: {operationId}. Errors: {string.Join(", ", result.Errors)}", SeverityLevel.Warning);
-            return new UnprocessableEntityObjectResult(result);
-          }
-
-          // Successful validation
-          _telemetryClient.TrackTrace($"Validation succeeded. OperationId: {operationId}", SeverityLevel.Information);
-          return new OkObjectResult(result);
+          _logger.LogEmptyRequestBody(operationId);
+          _logger.LogHttpFunctionErrorResponse(FunctionName, operationId, 400, "Empty request body");
+          operation.SetFailed("Empty request body");
+          return new BadRequestObjectResult("Request body is empty.");
         }
-        catch (Exception exception)
+
+        _logger.LogRequestBodyReceived(operationId, requestBody.Length);
+
+        // Parse JSON
+        _logger.LogParsingRequestJson(operationId);
+        var parseJsonResult = requestBody.TryParseJson(out InternalAndThirdPartyServiceTagSetting model);
+
+        if (!parseJsonResult.Success)
         {
-          _telemetryClient.TrackException(exception, new Dictionary<string, string>{
-                              { "OperationId", operationId }
-                          });
-
-          // Track detailed error context
-          _telemetryClient.TrackTrace($"Error occurred during validation. OperationId: {operationId}. Exception: {exception.Message}", SeverityLevel.Error);
-
-          // Return a generic error response with a user-friendly message
-          return new ObjectResult(new { message = "An error occurred while validating the service tags." })
-          {
-            StatusCode = 500
-          };
+          _logger.LogJsonParsingFailed(operationId, string.Join(", ", parseJsonResult.Errors));
+          operation.SetFailed("JSON parsing failed");
+          return new UnprocessableEntityObjectResult(parseJsonResult);
         }
-        finally
+
+        if (model == null)
         {
-          // Final telemetry operation stop, regardless of success or failure
-          _telemetryClient.TrackTrace($"Finished validating internal and third-party service tags. OperationId: {operationId}", SeverityLevel.Information);
+          _logger.LogJsonParsingFailed(operationId, "Parsed model is null");
+          operation.SetFailed("Parsed model is null");
+          return new BadRequestObjectResult("Parsed model is null.");
         }
+
+        _logger.LogJsonParsedSuccessfully(operationId, "InternalAndThirdPartyServiceTagSetting");
+
+        // Validate model
+        _logger.LogValidatingModel(operationId);
+        var validationResult = _internalAndThirdPartyServiceTagValidator.Validate(model);
+
+        if (!validationResult.Success)
+        {
+          _logger.LogModelValidationFailed(operationId, validationResult.Errors.Count);
+          operation.SetFailed("Validation failed");
+          return new BadRequestObjectResult(validationResult);
+        }
+
+        _logger.LogModelValidationSucceeded(operationId, "InternalAndThirdPartyServiceTagSetting");
+        _logger.LogHttpFunctionCompleted(FunctionName, operationId, 200, (long)operation.Elapsed.TotalMilliseconds);
+        operation.SetSuccess();
+
+        return new OkObjectResult(validationResult);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogHttpFunctionFailed(ex, FunctionName, operationId);
+        operation.SetFailed(ex.Message);
+        _telemetry.TrackException(ex, new Dictionary<string, string>
+        {
+          ["OperationId"] = operationId,
+          ["Function"] = FunctionName
+        });
+
+        return new StatusCodeResult(StatusCodes.Status500InternalServerError);
+      }
+      finally
+      {
+        // *** CORRELATION FIX: Clear at end of function ***
+        CorrelationContext.Clear();
       }
     }
-
   }
 }

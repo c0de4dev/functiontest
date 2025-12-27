@@ -48,6 +48,12 @@ namespace DynamicAllowListingLib.Logging
         return new EnhancedTelemetryService(logger, customTelemetry);
       });
 
+      services.AddTransient<Func<string, IDictionary<string, string>?, IOperationTracker>>(sp =>
+      {
+        var telemetry = sp.GetRequiredService<ICustomTelemetryService>();
+        return (name, props) => telemetry.StartOperation(name, props);
+      });
+
       return services;
     }
   }

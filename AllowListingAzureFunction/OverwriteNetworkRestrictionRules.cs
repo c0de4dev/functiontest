@@ -47,6 +47,9 @@ namespace AllowListingAzureFunction
       var resourceInfo = parameters.InputData;
       var result = new ResultObject();
 
+      // *** CORRELATION FIX: Set correlation context from parent InvocationID ***
+      CorrelationContext.SetCorrelationId(instanceId);
+
       using var loggerScope = _logger.BeginActivityScope(
           nameof(OverwriteNetworkRestrictionsActivityTrigger),
           instanceId,
@@ -93,6 +96,11 @@ namespace AllowListingAzureFunction
 
         result.Errors.Add($"Error overwriting network restrictions: {ex.Message}");
       }
+      finally
+      {
+        // *** CORRELATION FIX: Clear at end of activity ***
+        CorrelationContext.Clear();
+      }
 
       return result;
     }
@@ -103,6 +111,9 @@ namespace AllowListingAzureFunction
         FunctionContext context)
     {
       var instanceId = context.InvocationId.ToString();
+
+      // *** CORRELATION FIX: Set correlation context for queue trigger ***
+      CorrelationContext.SetCorrelationId(instanceId);
 
       using var loggerScope = _logger.BeginFunctionScope(nameof(OverwriteNetworkRestrictionsQueueTrigger), instanceId);
       using var operation = _telemetry.StartOperation(
@@ -148,6 +159,11 @@ namespace AllowListingAzureFunction
           ["Function"] = nameof(OverwriteNetworkRestrictionsQueueTrigger),
           ["ResourceName"] = config.ResourceName ?? "Unknown"
         });
+      }
+      finally
+      {
+        // *** CORRELATION FIX: Clear at end of function ***
+        CorrelationContext.Clear();
       }
     }
   }

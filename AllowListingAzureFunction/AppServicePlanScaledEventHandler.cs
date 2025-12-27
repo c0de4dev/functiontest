@@ -40,6 +40,9 @@ namespace AllowListingAzureFunction
       var operationId = Guid.NewGuid().ToString();
       var overwriteQueue = new List<ResourceDependencyInformation>();
 
+      // *** CORRELATION FIX: Set correlation context for queue trigger ***
+      CorrelationContext.SetCorrelationId(operationId);
+
       using var loggerScope = _logger.BeginFunctionScope(nameof(AppServicePlanScaledEventHandler), operationId);
       using var operation = _telemetry.StartOperation("AppServicePlanScaledEventHandler",
           new Dictionary<string, string> { ["OperationId"] = operationId });
@@ -93,6 +96,11 @@ namespace AllowListingAzureFunction
           ["QueueItem"] = queueItem
         });
         throw;
+      }
+      finally
+      {
+        // *** CORRELATION FIX: Clear at end of function ***
+        CorrelationContext.Clear();
       }
 
       return overwriteQueue.ToArray();

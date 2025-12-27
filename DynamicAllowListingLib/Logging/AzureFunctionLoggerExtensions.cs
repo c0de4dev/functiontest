@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace AllowListingAzureFunction.Logging
+namespace DynamicAllowListingLib.Logging
 {
   /// <summary>
   /// High-performance structured logging extensions for Azure Functions.
