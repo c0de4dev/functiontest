@@ -45,7 +45,7 @@ namespace AllowListingAzureFunction.Functions
       // Initialize correlation context
       CorrelationContext.SetCorrelationId(correlationId);
 
-      using (_logger.BeginFunctionScope(FunctionName, invocationId, correlationId))
+      using (_logger.BeginFunctionScope(FunctionName, invocationId, (string)correlationId))
       {
         _logger.LogFunctionStarted(FunctionName, invocationId, correlationId);
         _logger.LogHttpRequestReceived(FunctionName, req.Method, req.Path);

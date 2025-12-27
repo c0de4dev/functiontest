@@ -85,7 +85,7 @@ namespace AllowListingAzureFunction
 
         // Validate model
         _logger.LogValidatingModel(operationId);
-        var validationResult = await _validator.ValidateSettingAsync(model!);
+        var validationResult = _validator.Validate(model!);
 
         if (!validationResult.Success)
         {
