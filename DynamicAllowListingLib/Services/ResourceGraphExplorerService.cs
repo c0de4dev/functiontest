@@ -343,41 +343,41 @@ namespace DynamicAllowListingLib
 
     public async Task<List<string>> GetAllSubnetIds(string subscriptionId)
     {
-      var idList = new List<string>();
-
-      using (_logger.BeginQueryScope("GetAllSubnetIds", subscriptionId ?? "Unknown"))
+      if (string.IsNullOrEmpty(subscriptionId))
       {
-        _logger.LogGetAllSubnetIdsStart(subscriptionId ?? "Unknown");
+        throw new ArgumentNullException(nameof(subscriptionId), "Subscription ID cannot be null or empty");
+      }
 
+      var idList = new List<string>();
+      using (_logger.BeginQueryScope("GetAllSubnetIds", subscriptionId))
+      {
+        _logger.LogGetAllSubnetIdsStart(subscriptionId);
         try
         {
           string query = @"Resources | where type =~'Microsoft.Network/virtualNetworks'";
-
           var response = await GetResourceGraphExplorerResponse(new string[] { subscriptionId }, query);
-
           var queryResult = JsonConvert.DeserializeObject<VNets>(response);
 
-          // Fix CS8601: Handle potential null queryResult.data
           if (queryResult?.data != null)
           {
             foreach (var row in queryResult.data)
             {
               if (row?.properties?.subnets != null)
               {
-                idList.AddRange(row.properties.subnets.Select(subnet => subnet.id));
+                idList.AddRange(row.properties.subnets
+                    .Select(subnet => subnet.id)
+                    .Where(id => !string.IsNullOrEmpty(id))!);
               }
             }
           }
-
           _logger.LogGetAllSubnetIdsComplete(idList.Count);
         }
         catch (Exception ex)
         {
-          _logger.LogGetAllSubnetIdsFailed(ex, subscriptionId ?? "Unknown");
+          _logger.LogGetAllSubnetIdsFailed(ex, subscriptionId);
           throw;
         }
       }
-
       return idList;
     }
 

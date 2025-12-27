@@ -34,3 +34,12 @@ C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformE
 C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Debug\net8.0\DynamicAllowListingLib.AssemblyInfo.cs
 C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Debug\net8.0\DynamicAllowListingLib.csproj.CoreCompileInputs.cache
 C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Debug\net8.0\DynamicAllowListingLib.sourcelink.json
+C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\bin\Debug\net8.0\Microsoft.Azure.Cosmos.ServiceInterop.dll
+C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\bin\Debug\net8.0\Cosmos.CRTCompat.dll
+C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\bin\Debug\net8.0\DynamicAllowListingLib.deps.json
+C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\bin\Debug\net8.0\DynamicAllowListingLib.dll
+C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\bin\Debug\net8.0\DynamicAllowListingLib.pdb
+C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Debug\net8.0\DynamicAllowListingLib.dll
+C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Debug\net8.0\refint\DynamicAllowListingLib.dll
+C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Debug\net8.0\DynamicAllowListingLib.pdb
+C:\Users\Administrator\Desktop\PlatformEngineering.DynamicAllowListing\PlatformEngineering.DynamicAllowListing\DynamicAllowListingLib\obj\Debug\net8.0\ref\DynamicAllowListingLib.dll

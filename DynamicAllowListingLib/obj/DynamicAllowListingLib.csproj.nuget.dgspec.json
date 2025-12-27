@@ -91,6 +91,14 @@
               "target": "Package",
               "version": "[8.0.1, )"
             },
+            "Microsoft.Extensions.Logging": {
+              "target": "Package",
+              "version": "[8.0.1, )"
+            },
+            "Microsoft.Extensions.Logging.Abstractions": {
+              "target": "Package",
+              "version": "[8.0.2, )"
+            },
             "Microsoft.Rest.ClientRuntime": {
               "target": "Package",
               "version": "[2.3.24, )"

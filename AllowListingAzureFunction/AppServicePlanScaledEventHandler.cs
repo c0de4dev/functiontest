@@ -60,7 +60,7 @@ namespace AllowListingAzureFunction
 
         operation.AddProperty("ResourceId", eventGridData.ResourceId);
 
-        if (!ValidationHelper.IsValidAppServicePlanResourceId(eventGridData.ResourceId))
+        if (!ValidationHelper.IsValidAppServicePlanId(eventGridData.ResourceId))
         {
           _logger.LogOperationCompletedWithErrors(operationId, 1);
           _logger.LogQueueTriggerCompleted(nameof(AppServicePlanScaledEventHandler), operationId, true);
@@ -69,7 +69,7 @@ namespace AllowListingAzureFunction
         }
 
         // Get resources hosted on this App Service Plan
-        var configs = await _dynamicAllowListingHelper.GetResourceDependencyConfigsForPlan(eventGridData.ResourceId);
+        var configs = await _dynamicAllowListingHelper.GetOverwriteConfigsForAppServicePlanScale(eventGridData.ResourceId);
         _logger.LogFetchedDependencyConfigs(configs.Count, operationId);
 
         foreach (var config in configs)

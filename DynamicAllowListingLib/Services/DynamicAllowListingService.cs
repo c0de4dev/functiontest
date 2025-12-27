@@ -315,7 +315,11 @@ namespace DynamicAllowListingLib.Services
               continue;
             }
 
-            var provisioningState = azureResource.ProvisioningState;
+
+            // Cast the resource to CosmosDb and fetch provisioning status
+            var cosmosDb = azureResource as CosmosDb;
+            var props = await cosmosDb!.GetExistingCosmosDbArmProperties(_restHelper, _logger);
+            string provisioningState = props!.Properties.ProvisioningState;
 
             if (provisioningState != "Succeeded")
             {

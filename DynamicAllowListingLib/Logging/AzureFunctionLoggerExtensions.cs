@@ -343,7 +343,7 @@ namespace AllowListingAzureFunction.Logging
     /// <summary>
     /// Creates a logging scope for function execution.
     /// </summary>
-    public static IDisposable BeginFunctionScope(
+    public static IDisposable? BeginFunctionScope(
         this ILogger logger,
         string functionName,
         string invocationId,
@@ -360,7 +360,7 @@ namespace AllowListingAzureFunction.Logging
     /// <summary>
     /// Creates a logging scope for resource processing.
     /// </summary>
-    public static IDisposable BeginResourceProcessingScope(
+    public static IDisposable? BeginResourceProcessingScope(
         this ILogger logger,
         string functionName,
         string resourceId,

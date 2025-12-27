@@ -1,4 +1,5 @@
 ﻿using DynamicAllowListingLib.Models;
+using DynamicAllowListingLib.Models.AzureResources;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -55,5 +56,11 @@ namespace DynamicAllowListingLib
     /// <param name="resourceId">Frontdoor resource ids</param>
     /// <returns>ResourceId & FDID pairs</returns>
     public Task<Dictionary<string,string>> GetFrontDoorUniqueInstanceIds(List<string> resourceId);
+    /// <summary>
+    /// Get web app slots for a given web app.
+    /// </summary>
+    /// <param name="webAppId">Azure resource id of the web app</param>
+    /// <returns>List of WebSite slots.</returns>
+    public Task<List<WebSite>> GetWebAppSlots(string webAppId);
   }
 }
