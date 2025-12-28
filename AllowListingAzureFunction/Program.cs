@@ -83,7 +83,7 @@ class Program
 
           services.AddScoped<IAzureServiceTagsJsonHelper, AzureServiceTagsJsonHelper>();
           services.AddScoped<IRestHelper, RestHelper>();
-          
+
           services.AddScoped<IResourceGraphExplorerService, ResourceGraphExplorerService>();
           services.AddScoped<IDynamicAllowListingService, DynamicAllowListingService>();
 
@@ -117,7 +117,7 @@ class Program
           services.AddScoped<IPersistenceManager<ServiceTag>, ServiceTagsPersistenceManager>();
 
           // Persistence Services setup with Cosmos DB settings
-          services.AddScoped<IResourceDependencyInformationPersistenceService, ResourceDependencyInformationPersistenceService> ();
+          services.AddScoped<IResourceDependencyInformationPersistenceService, ResourceDependencyInformationPersistenceService>();
 
 
           // IP Restriction Services
@@ -169,5 +169,5 @@ class Program
 
     host.Run();
   }
- 
+
 }

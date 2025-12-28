@@ -2,141 +2,140 @@ using AllowListingAzureFunction.Logging;
 using DynamicAllowListingLib;
 using DynamicAllowListingLib.Logging;
 using DynamicAllowListingLib.Services;
-using DynamicAllowListingLib.SettingsValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
-namespace AllowListingAzureFunction
+namespace AllowListingAzureFunction.Functions
 {
+  /// <summary>
+  /// HTTP-triggered function to check if resource provisioning has succeeded.
+  /// </summary>
   public class CheckProvisioningSucceeded
   {
     private const string FunctionName = nameof(CheckProvisioningSucceeded);
 
-    private readonly IDynamicAllowListingService _dynamicAllowListingHelper;
-    private readonly ISettingValidator<ResourceDependencyInformation> _validator;
-    private readonly ICustomTelemetryService _telemetry;
+    private readonly IDynamicAllowListingService _dynamicAllowListingService;
+    private readonly EnhancedTelemetryService _telemetryService;
     private readonly ILogger<CheckProvisioningSucceeded> _logger;
 
     public CheckProvisioningSucceeded(
-        IDynamicAllowListingService dynamicAllowListingHelper,
-        ISettingValidator<ResourceDependencyInformation> validator,
-        ICustomTelemetryService telemetry,
+        IDynamicAllowListingService dynamicAllowListingService,
+        EnhancedTelemetryService telemetryService,
         ILogger<CheckProvisioningSucceeded> logger)
     {
-      _dynamicAllowListingHelper = dynamicAllowListingHelper ?? throw new ArgumentNullException(nameof(dynamicAllowListingHelper));
-      _validator = validator ?? throw new ArgumentNullException(nameof(validator));
-      _telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+      _dynamicAllowListingService = dynamicAllowListingService ?? throw new ArgumentNullException(nameof(dynamicAllowListingService));
+      _telemetryService = telemetryService ?? throw new ArgumentNullException(nameof(telemetryService));
       _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     [Function(FunctionName)]
     public async Task<IActionResult> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequest req)
+        [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
+        FunctionContext executionContext)
     {
-      var operationId = Guid.NewGuid().ToString();
+      var invocationId = executionContext.InvocationId;
+      var correlationId = GetCorrelationId(req, invocationId);
 
-      // Set correlation context for library layer
-      CorrelationContext.SetCorrelationId(operationId);
+      // Initialize correlation context
+      CorrelationContext.SetCorrelationId(correlationId);
 
-      using var loggerScope = _logger.BeginFunctionScope(FunctionName, operationId);
-      using var operation = _telemetry.StartOperation(FunctionName,
-          new Dictionary<string, string> { ["OperationId"] = operationId });
-
-      try
+      using (_logger.BeginFunctionScope(FunctionName, invocationId, (string)correlationId))
       {
-        _logger.LogHttpFunctionStarted(FunctionName, operationId, req.Method);
+        _logger.LogFunctionStarted(FunctionName, invocationId, correlationId);
         _logger.LogHttpRequestReceived(FunctionName, req.Method, req.Path);
 
-        // Read request body
-        _logger.LogReadingRequestBody(operationId);
-        string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+        return await _telemetryService.TrackOperationAsync(
+            FunctionName,
+            async () =>
+            {
+              // Read and validate request body
+              string requestBody;
+              using (var reader = new StreamReader(req.Body))
+              {
+                requestBody = await reader.ReadToEndAsync();
+              }
 
-        if (string.IsNullOrWhiteSpace(requestBody))
-        {
-          _logger.LogEmptyRequestBody(operationId);
-          _logger.LogHttpFunctionErrorResponse(FunctionName, operationId, 400, "Empty request body");
-          operation.SetFailed("Empty request body");
-          return new BadRequestResult();
-        }
+              if (string.IsNullOrWhiteSpace(requestBody))
+              {
+                _logger.LogHttpValidationFailed(FunctionName, "Request body is empty");
+                return CreateErrorResponse("Request body cannot be empty.", 400);
+              }
 
-        _logger.LogRequestBodyReceived(operationId, requestBody.Length);
+              _logger.LogHttpRequestBody(FunctionName, requestBody.Length);
 
-        // Parse JSON to object
-        _logger.LogParsingRequestJson(operationId);
-        var parseJsonResult = requestBody.TryParseJson(out ResourceDependencyInformation model);
+              // Deserialize the request
+              ResourceDependencyInformation? resourceDependencyInformation;
+              try
+              {
+                resourceDependencyInformation = JsonConvert.DeserializeObject<ResourceDependencyInformation>(requestBody);
+              }
+              catch (JsonException ex)
+              {
+                _logger.LogHttpValidationFailed(FunctionName, $"JSON deserialization failed: {ex.Message}");
+                return CreateErrorResponse($"Invalid JSON format: {ex.Message}", 400);
+              }
 
-        if (!parseJsonResult.Success)
-        {
-          _logger.LogJsonParsingFailed(operationId, string.Join(", ", parseJsonResult.Errors));
-          operation.SetFailed("JSON parsing failed");
-          return new UnprocessableEntityObjectResult(parseJsonResult);
-        }
+              if (resourceDependencyInformation == null)
+              {
+                _logger.LogHttpValidationFailed(FunctionName, "Failed to deserialize request body");
+                return CreateErrorResponse("Invalid request body format.", 400);
+              }
 
-        _logger.LogJsonParsedSuccessfully(operationId, model?.ResourceName ?? "Unknown");
-        operation.AddProperty("ResourceName", model?.ResourceName ?? "Unknown");
-        operation.AddProperty("ResourceId", model?.ResourceId ?? "Unknown");
+              var resourceId = resourceDependencyInformation.ResourceId ?? "Unknown";
+              var resourceType = resourceDependencyInformation.ResourceType ?? "Unknown";
 
-        // Run validation rules
-        _logger.LogValidatingModel(operationId);
-        var validationResults = _validator.Validate(model!);
+              _logger.LogProcessingResource(FunctionName, resourceId, resourceType);
 
-        if (!validationResults.Success)
-        {
-          _logger.LogModelValidationFailed(operationId, validationResults.Errors.Count);
-          operation.SetFailed("Validation failed");
-          return new UnprocessableEntityObjectResult(validationResults);
-        }
+              // Execute the provisioning check
+              var result = await _dynamicAllowListingService.CheckProvisioningSucceeded(resourceDependencyInformation);
 
-        _logger.LogModelValidationSucceeded(operationId, model!.ResourceName ?? "Unknown");
-
-        // Check provisioning status
-        _logger.LogInformation(
-            "Checking provisioning status | ResourceName: {ResourceName} | ResourceId: {ResourceId} | OperationId: {OperationId}",
-            model.ResourceName ?? "Unknown",
-            model.ResourceId ?? "Unknown",
-            operationId);
-
-        var dalResult = await _dynamicAllowListingHelper.CheckProvisioningSucceeded(model);
-
-        // Log result
-        if (dalResult.Success)
-        {
-          _logger.LogHttpFunctionCompleted(FunctionName, operationId, 200, (long)operation.Elapsed.TotalMilliseconds);
-          operation.SetSuccess();
-        }
-        else
-        {
-          _logger.LogOperationCompletedWithErrors(operationId, dalResult.Errors.Count);
-          _logger.LogOperationErrors(operationId, string.Join("; ", dalResult.Errors));
-          operation.AddMetric("ErrorCount", dalResult.Errors.Count);
-          operation.SetFailed($"{dalResult.Errors.Count} provisioning check errors");
-        }
-
-        return new OkObjectResult(dalResult);
+              if (result.Success)
+              {
+                _logger.LogResourceProcessedSuccess(FunctionName, resourceId);
+                return new OkObjectResult(result);
+              }
+              else
+              {
+                _logger.LogValidationErrors(FunctionName, resourceId, result.Errors.Count);
+                return new BadRequestObjectResult(result);
+              }
+            });
       }
-      catch (Exception ex)
+    }
+
+    private static string GetCorrelationId(HttpRequest req, string fallbackId)
+    {
+      if (req.Headers.TryGetValue("X-Correlation-ID", out var correlationHeader) &&
+          !string.IsNullOrEmpty(correlationHeader))
       {
-        _logger.LogHttpFunctionFailed(ex, FunctionName, operationId);
-        operation.SetFailed(ex.Message);
-        _telemetry.TrackException(ex, new Dictionary<string, string>
-        {
-          ["OperationId"] = operationId,
-          ["Function"] = FunctionName
-        });
+        return correlationHeader!;
+      }
 
-        return new StatusCodeResult(StatusCodes.Status500InternalServerError);
-      }
-      finally
+      if (req.Headers.TryGetValue("Request-Id", out var requestIdHeader) &&
+          !string.IsNullOrEmpty(requestIdHeader))
       {
-        // Clear correlation context at end of request
-        CorrelationContext.Clear();
+        return requestIdHeader!;
       }
+
+      return fallbackId;
+    }
+
+    private static IActionResult CreateErrorResponse(string message, int statusCode)
+    {
+      var result = new ResultObject();
+      result.Errors.Add(message);
+
+      return statusCode switch
+      {
+        400 => new BadRequestObjectResult(result),
+        _ => new ObjectResult(result) { StatusCode = statusCode }
+      };
     }
   }
 }

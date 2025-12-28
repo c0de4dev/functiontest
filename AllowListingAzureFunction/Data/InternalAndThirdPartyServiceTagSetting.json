@@ -4,9 +4,9 @@
     " GENERATED FILE - DO NOT MANUALLY UPDATE THIS FILE",
     " ---------------------------------------------------------------------------",
     "",
-    " FROM REPO: https://github.com/NewDayCards/NewTech.Clarity.Infra.Config",
+    " FROM REPO: https://github.com/NewDayTechnology/NewTech.Clarity.Infra.Config",
     " UPDATE FILES: /config/partners/allowlists/definitions/*.yml",
-    " THEN EXECUTE: /scripts/allowlists/export-definitions.ps1 -DAL -Clarity",
+    " THEN EXECUTE: /scripts/export-definitions.ps1 -DAL -Clarity",
     "",
     " ADD: entry with 'key', 'type', 'value', 'metadata', 'reviewed' attributes",
     "      - to be included into DAL add 'metadata.dal.<ServiceTagName>' with",
@@ -155,29 +155,10 @@
     },
     {
       "_Comments": [],
-      "Name": "AWS.Featurespace.DevStg",
-      "AddressPrefixes": [
-        "34.242.116.216/32",
-        "52.18.94.92/32",
-        "108.128.6.243/32"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDT-EU-PE-DEV-NDT",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-STG-NDT",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
       "Name": "AWS.PMN",
       "AddressPrefixes": [
-        "34.252.150.12/32",
-        "34.255.25.165/32"
+        "34.255.25.165/32",
+        "34.252.150.12/32"
       ],
       "AllowedSubscriptions": [
         {
@@ -293,8 +274,8 @@
       "_Comments": [],
       "Name": "Bastion.PRD",
       "AddressPrefixes": [
-        "20.61.6.60/30",
-        "20.238.28.92/30"
+        "20.238.28.92/30",
+        "20.61.6.60/30"
       ],
       "AllowedSubscriptions": [
         {
@@ -348,31 +329,31 @@
       "_Comments": [],
       "Name": "BlazeMeter.GCP",
       "AddressPrefixes": [
-        "34.89.21.48/32",
-        "34.89.48.72/32",
-        "34.89.49.109/32",
-        "34.89.77.248/32",
-        "35.197.202.103/32",
-        "35.197.218.213/32",
-        "35.197.238.121/32",
-        "35.197.255.83/32",
-        "35.230.145.242/32",
-        "35.242.135.141/32",
-        "35.242.145.190/32",
-        "35.242.155.99/32",
-        "35.242.156.85/32",
-        "35.242.160.119/32",
-        "35.246.2.78/32",
-        "35.246.2.189/32",
-        "35.246.41.26/32",
-        "35.246.41.239/32",
         "35.246.59.122/32",
-        "35.246.68.207/32",
-        "35.246.73.7/32",
-        "35.246.84.84/32",
         "35.246.85.161/32",
+        "34.89.21.48/32",
+        "35.197.238.121/32",
+        "35.246.41.26/32",
+        "35.242.135.141/32",
+        "35.197.218.213/32",
         "35.246.98.104/32",
-        "35.246.100.15/32"
+        "35.246.2.189/32",
+        "34.89.49.109/32",
+        "35.246.41.239/32",
+        "35.246.100.15/32",
+        "35.242.155.99/32",
+        "34.89.77.248/32",
+        "35.246.68.207/32",
+        "35.246.2.78/32",
+        "35.197.202.103/32",
+        "35.246.73.7/32",
+        "35.197.255.83/32",
+        "35.242.160.119/32",
+        "35.246.84.84/32",
+        "35.242.145.190/32",
+        "34.89.48.72/32",
+        "35.242.156.85/32",
+        "35.230.145.242/32"
       ],
       "AllowedSubscriptions": [
         {
@@ -410,10 +391,6 @@
       "_Comments": [],
       "Name": "BrowserStack",
       "AddressPrefixes": [
-        "18.132.57.169/32",
-        "34.253.190.46/32",
-        "34.253.190.55/32",
-        "35.177.51.175/32",
         "54.75.244.135/32"
       ],
       "AllowedSubscriptions": [
@@ -423,14 +400,6 @@
         },
         {
           "SubscriptionName": "Digital-UAT",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDC-EU-PE-DEV-NDC",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDC-EU-PE-STG-NDC",
           "IsMandatory": "False"
         }
       ]
@@ -465,7 +434,10 @@
       "_Comments": [],
       "Name": "Checkpoint.UKS.ITInfraPro",
       "AddressPrefixes": [
-        "20.26.24.90/31"
+        "51.104.249.58/32",
+        "20.254.47.235/32",
+        "20.26.24.90/31",
+        "20.26.208.7/32"
       ],
       "AllowedSubscriptions": [
         {
@@ -514,7 +486,7 @@
       "_Comments": [],
       "Name": "Checkpoint.UKS.ITInfraPro.UAT",
       "AddressPrefixes": [
-        "51.104.248.128/31",
+        "51.145.52.106/32",
         "172.167.69.19/32"
       ],
       "AllowedSubscriptions": [
@@ -553,7 +525,10 @@
       "_Comments": [],
       "Name": "Checkpoint.WE.ndPRO.ITInfra",
       "AddressPrefixes": [
-        "20.23.41.86/31"
+        "51.145.184.227/32",
+        "20.234.200.41/32",
+        "20.23.41.86/31",
+        "104.47.149.238/32"
       ],
       "AllowedSubscriptions": [
         {
@@ -570,7 +545,7 @@
       "_Comments": [],
       "Name": "Checkpoint.WE.ndPRO.ITInfra.UAT",
       "AddressPrefixes": [
-        "20.82.9.32/31",
+        "52.148.241.106/32",
         "108.142.252.178/32"
       ],
       "AllowedSubscriptions": [
@@ -644,8 +619,8 @@
       "_Comments": [],
       "Name": "Deko.Prod.London",
       "AddressPrefixes": [
-        "34.240.26.124/32",
         "34.248.192.54/32",
+        "34.240.26.124/32",
         "34.253.155.231/32"
       ],
       "AllowedSubscriptions": [
@@ -693,96 +668,21 @@
     },
     {
       "_Comments": [],
-      "Name": "DigiCert.DCV",
-      "AddressPrefixes": [
-        "13.58.90.0/32",
-        "18.193.239.14/32",
-        "52.17.48.104/32",
-        "54.185.245.130/32",
-        "54.227.165.213/32",
-        "54.241.89.140/32",
-        "202.65.16.4/32",
-        "216.168.240.4/32",
-        "216.168.247.9/32",
-        "216.168.249.9/32"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "Digital-DEV",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "Digital-UAT",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "Digital-PRD",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDC-EU-PE-DEV-NDC",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDC-EU-PE-STG-NDC",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDC-EU-PE-PRD-NDC",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-DEV-NDT",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-STG-NDT",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-PRD-NDT",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-STG-A05",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-PRD-A05",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-STG-A06",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-PRD-A06",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
       "Name": "Endava",
       "AddressPrefixes": [
-        "34.103.158.138/32",
-        "66.159.216.205/32",
-        "66.159.216.208/32",
-        "81.18.80.195/32",
-        "81.196.34.138/32",
-        "81.196.111.34/32",
-        "82.77.27.42/32",
-        "82.137.42.18/32",
-        "86.120.69.178/32",
-        "89.238.222.82/32",
-        "89.238.222.146/32",
         "89.238.227.34/32",
-        "89.238.249.99/32",
+        "81.196.111.34/32",
+        "86.120.69.178/32",
+        "89.238.222.146/32",
+        "194.126.146.46/32",
         "89.238.254.141/32",
-        "128.77.2.2/31",
-        "128.77.2.4/30",
-        "128.77.2.8/31",
-        "128.77.2.11/32",
+        "82.77.27.42/32",
+        "89.238.249.99/32",
+        "81.18.80.195/32",
+        "82.137.42.18/32",
+        "89.238.222.82/32",
+        "81.196.34.138/32",
+        "193.33.93.43/32",
         "128.77.15.12/30",
         "128.77.15.16/30",
         "130.41.145.27/32",
@@ -792,13 +692,18 @@
         "134.238.102.155/32",
         "134.238.102.156/32",
         "137.83.242.199/32",
-        "165.1.192.198/32",
+        "208.127.137.161/32",
+        "208.127.137.162/32",
         "165.85.138.85/32",
         "165.85.161.79/32",
-        "193.33.93.43/32",
-        "194.126.146.46/32",
-        "208.127.137.161/32",
-        "208.127.137.162/32"
+        "66.159.216.205/32",
+        "66.159.216.208/32",
+        "128.77.2.2/31",
+        "128.77.2.4/30",
+        "128.77.2.8/31",
+        "128.77.2.11/32",
+        "165.1.192.198/32",
+        "34.103.158.138/32"
       ],
       "AllowedSubscriptions": [
         {
@@ -832,40 +737,6 @@
         {
           "SubscriptionName": "NDT-EU-PE-STG-A06",
           "IsMandatory": "True"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
-      "Name": "EXL",
-      "AddressPrefixes": [
-        "3.10.248.99/32",
-        "18.169.23.200/32"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "Digital-DEV",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "Digital-UAT",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "Digital-PRD",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDC-EU-PE-DEV-NDC",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDC-EU-PE-STG-NDC",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDC-EU-PE-PRD-NDC",
-          "IsMandatory": "False"
         }
       ]
     },
@@ -890,7 +761,7 @@
       "_Comments": [],
       "Name": "Firewall.UKS.ITInfraCoreNet.Prd",
       "AddressPrefixes": [
-        "20.26.24.90/31"
+        "20.254.47.235/32"
       ],
       "AllowedSubscriptions": [
         {
@@ -939,7 +810,7 @@
       "_Comments": [],
       "Name": "Firewall.WEU.ITInfraCoreNet.Prd",
       "AddressPrefixes": [
-        "20.23.41.86/31"
+        "20.234.200.41/32"
       ],
       "AllowedSubscriptions": [
         {
@@ -1325,268 +1196,11 @@
     },
     {
       "_Comments": [],
-      "Name": "Grafana.Hosted",
-      "AddressPrefixes": [
-        "3.21.150.93/32",
-        "3.29.170.21/32",
-        "3.70.73.127/32",
-        "3.125.31.111/32",
-        "3.129.236.235/32",
-        "3.134.165.237/32",
-        "3.140.4.182/32",
-        "13.41.125.195/32",
-        "13.50.45.28/32",
-        "13.113.209.77/32",
-        "13.232.127.226/32",
-        "13.234.70.74/32",
-        "16.16.136.87/32",
-        "16.63.57.20/32",
-        "16.63.143.105/32",
-        "16.78.129.243/32",
-        "16.78.139.254/32",
-        "18.168.12.162/32",
-        "18.180.113.16/32",
-        "18.196.109.35/32",
-        "18.228.84.204/32",
-        "18.229.226.84/32",
-        "20.40.212.224/32",
-        "20.40.212.225/32",
-        "20.40.212.226/32",
-        "20.40.212.227/32",
-        "20.40.212.228/32",
-        "20.40.212.229/32",
-        "20.40.212.230/32",
-        "20.40.212.231/32",
-        "20.40.212.232/32",
-        "20.40.212.233/32",
-        "20.40.212.234/32",
-        "20.40.212.235/32",
-        "20.40.212.236/32",
-        "20.40.212.237/32",
-        "20.40.212.238/32",
-        "20.40.212.239/32",
-        "20.67.29.224/32",
-        "20.67.29.225/32",
-        "20.67.29.226/32",
-        "20.67.29.227/32",
-        "20.67.29.228/32",
-        "20.67.29.229/32",
-        "20.67.29.230/32",
-        "20.67.29.231/32",
-        "20.67.29.232/32",
-        "20.67.29.233/32",
-        "20.67.29.234/32",
-        "20.67.29.235/32",
-        "20.67.29.236/32",
-        "20.67.29.237/32",
-        "20.67.29.238/32",
-        "20.67.29.239/32",
-        "20.221.43.180/32",
-        "20.236.236.93/32",
-        "20.236.238.183/32",
-        "23.236.55.100/32",
-        "34.23.153.165/32",
-        "34.23.182.42/32",
-        "34.28.196.162/32",
-        "34.30.244.87/32",
-        "34.66.50.58/32",
-        "34.66.84.48/32",
-        "34.67.217.87/32",
-        "34.68.98.63/32",
-        "34.68.102.192/32",
-        "34.69.89.218/32",
-        "34.69.204.106/32",
-        "34.69.227.129/32",
-        "34.70.10.78/32",
-        "34.70.19.238/32",
-        "34.71.21.236/32",
-        "34.71.98.16/32",
-        "34.71.146.82/32",
-        "34.71.213.69/32",
-        "34.72.94.67/32",
-        "34.72.240.165/32",
-        "34.75.125.254/32",
-        "34.75.153.128/32",
-        "34.76.83.209/32",
-        "34.76.89.203/32",
-        "34.77.66.52/32",
-        "34.77.139.61/32",
-        "34.77.204.7/32",
-        "34.77.231.182/32",
-        "34.77.234.15/32",
-        "34.78.51.99/32",
-        "34.78.119.177/32",
-        "34.78.119.192/32",
-        "34.78.144.14/32",
-        "34.78.215.237/32",
-        "34.78.254.53/32",
-        "34.79.38.7/32",
-        "34.79.82.143/32",
-        "34.79.87.153/32",
-        "34.89.0.135/32",
-        "34.89.45.33/32",
-        "34.93.36.202/32",
-        "34.95.128.218/32",
-        "34.105.148.240/32",
-        "34.116.86.185/32",
-        "34.121.8.98/32",
-        "34.121.249.58/32",
-        "34.122.25.189/32",
-        "34.122.201.10/32",
-        "34.124.228.37/32",
-        "34.124.249.232/32",
-        "34.132.169.54/32",
-        "34.133.189.12/32",
-        "34.134.222.119/32",
-        "34.134.236.18/32",
-        "34.136.227.230/32",
-        "34.138.106.25/32",
-        "34.138.147.250/32",
-        "34.139.9.89/32",
-        "34.139.32.16/32",
-        "34.139.48.103/32",
-        "34.139.125.88/32",
-        "34.140.24.69/32",
-        "34.140.80.178/32",
-        "34.140.126.111/32",
-        "34.140.131.149/32",
-        "34.140.145.86/32",
-        "34.140.174.239/32",
-        "34.140.222.135/32",
-        "34.140.249.6/32",
-        "34.148.219.153/32",
-        "34.151.109.239/32",
-        "34.151.230.121/32",
-        "34.166.5.172/32",
-        "34.166.9.117/32",
-        "34.166.38.54/32",
-        "34.166.67.150/32",
-        "35.184.23.28/32",
-        "35.186.149.28/32",
-        "35.186.156.68/32",
-        "35.188.35.239/32",
-        "35.188.111.61/32",
-        "35.188.211.52/32",
-        "35.188.223.159/32",
-        "35.189.52.157/32",
-        "35.189.214.91/32",
-        "35.189.216.92/32",
-        "35.190.218.33/32",
-        "35.192.9.186/32",
-        "35.192.170.84/32",
-        "35.193.116.27/32",
-        "35.193.153.9/32",
-        "35.194.53.190/32",
-        "35.195.32.148/32",
-        "35.195.145.128/32",
-        "35.195.200.108/32",
-        "35.195.227.45/32",
-        "35.195.230.234/32",
-        "35.196.207.58/32",
-        "35.196.219.66/32",
-        "35.197.189.88/32",
-        "35.199.124.141/32",
-        "35.200.157.179/32",
-        "35.200.163.5/32",
-        "35.200.175.68/32",
-        "35.202.43.115/32",
-        "35.205.135.148/32",
-        "35.205.153.2/32",
-        "35.205.162.147/32",
-        "35.205.214.194/32",
-        "35.222.253.67/32",
-        "35.223.104.30/32",
-        "35.223.234.104/32",
-        "35.224.49.153/32",
-        "35.224.152.225/32",
-        "35.224.213.187/32",
-        "35.225.14.197/32",
-        "35.225.46.237/32",
-        "35.231.42.145/32",
-        "35.231.88.7/32",
-        "35.232.52.64/32",
-        "35.232.101.234/32",
-        "35.232.164.62/32",
-        "35.233.39.134/32",
-        "35.233.87.205/32",
-        "35.238.91.227/32",
-        "35.239.61.132/32",
-        "35.239.142.182/32",
-        "35.240.3.33/32",
-        "35.240.23.141/32",
-        "35.240.65.0/32",
-        "35.240.68.148/32",
-        "35.241.223.88/32",
-        "35.241.240.83/32",
-        "35.246.5.240/32",
-        "35.247.201.140/32",
-        "44.195.116.15/32",
-        "51.112.3.93/32",
-        "52.24.218.184/32",
-        "52.63.186.164/32",
-        "52.64.4.235/32",
-        "52.189.69.217/32",
-        "52.230.136.32/32",
-        "52.242.224.7/32",
-        "54.151.169.184/32",
-        "54.191.255.86/32",
-        "54.255.103.207/32",
-        "63.177.30.249/32",
-        "98.89.137.0/32",
-        "99.79.98.39/32",
-        "99.79.143.13/32",
-        "104.154.18.168/32",
-        "104.154.148.31/32",
-        "104.154.179.160/32",
-        "104.155.17.39/32",
-        "104.155.37.135/32",
-        "104.196.112.131/32",
-        "104.197.72.38/32",
-        "104.197.149.206/32",
-        "104.197.203.224/32",
-        "104.199.42.73/32",
-        "104.199.83.1/32",
-        "107.178.208.235/32",
-        "130.211.63.98/32",
-        "146.148.114.193/32",
-        "172.170.32.66/32",
-        "172.170.160.46/32"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "Digital-DEV",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "Digital-UAT",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDC-EU-PE-DEV-NDC",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDC-EU-PE-STG-NDC",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
       "Name": "HubAndSpoke.APIM.Dev",
       "AddressPrefixes": [
-        "4.245.250.143/32",
-        "104.47.167.40/32"
+        "4.245.250.143/32"
       ],
       "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "Digital-DEV",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDC-EU-PE-DEV-NDC",
-          "IsMandatory": "False"
-        },
         {
           "SubscriptionName": "NDT-EU-PE-DEV-NDT",
           "IsMandatory": "False"
@@ -1614,14 +1228,6 @@
       ],
       "AllowedSubscriptions": [
         {
-          "SubscriptionName": "Digital-PRD",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDC-EU-PE-PRD-NDC",
-          "IsMandatory": "False"
-        },
-        {
           "SubscriptionName": "NDT-EU-PE-PRD-NDT",
           "IsMandatory": "False"
         },
@@ -1644,14 +1250,6 @@
       ],
       "AllowedSubscriptions": [
         {
-          "SubscriptionName": "Digital-UAT",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDC-EU-PE-STG-NDC",
-          "IsMandatory": "False"
-        },
-        {
           "SubscriptionName": "NDT-EU-PE-STG-NDT",
           "IsMandatory": "False"
         },
@@ -1669,9 +1267,9 @@
       "_Comments": [],
       "Name": "IMIconnect",
       "AddressPrefixes": [
+        "52.17.23.194/32",
         "18.203.89.161/32",
         "34.250.50.84/32",
-        "52.17.23.194/32",
         "52.211.238.186/32"
       ],
       "AllowedSubscriptions": [
@@ -1870,8 +1468,8 @@
       "_Comments": [],
       "Name": "Kaizen",
       "AddressPrefixes": [
-        "77.102.243.88/32",
-        "188.26.196.109/32"
+        "188.26.196.109/32",
+        "77.102.243.88/32"
       ],
       "AllowedSubscriptions": [
         {
@@ -1896,8 +1494,8 @@
       "_Comments": [],
       "Name": "KCOM.Leeds",
       "AddressPrefixes": [
-        "194.75.205.64/28",
-        "195.99.255.240/28"
+        "195.99.255.240/28",
+        "194.75.205.64/28"
       ],
       "AllowedSubscriptions": [
         {
@@ -2079,120 +1677,9 @@
     },
     {
       "_Comments": [],
-      "Name": "NDT.HubGateway.Dev",
-      "AddressPrefixes": [
-        "4.245.218.253/32",
-        "40.67.200.56/32"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "Digital-DEV",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDC-EU-PE-DEV-NDC",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-DEV-NDT",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
-      "Name": "NDT.HubGateway.Prd",
-      "AddressPrefixes": [
-        "4.231.81.74/32",
-        "48.209.191.163/32"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDC-EU-PE-PRD-NDC",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-PRD-NDT",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-PRD-A06",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-PRD-A05",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
-      "Name": "NDT.HubGateway.Stg",
-      "AddressPrefixes": [
-        "74.234.9.250/32",
-        "172.211.2.152/32"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "Digital-UAT",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDC-EU-PE-STG-NDC",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-STG-NDT",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-STG-A06",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-STG-A05",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
       "Name": "NDTFirewallHub.North.DEV",
       "AddressPrefixes": [
         "4.208.25.216/29"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDT-EU-PE-DEV-NDT",
-          "IsMandatory": "True"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-STG-NDT",
-          "IsMandatory": "True"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-STG-A05",
-          "IsMandatory": "True"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-STG-A06",
-          "IsMandatory": "True"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-STG-A02",
-          "IsMandatory": "True"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-STG-A03",
-          "IsMandatory": "True"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
-      "Name": "NDTFirewallHub.West.DEV",
-      "AddressPrefixes": [
-        "20.160.250.192/29"
       ],
       "AllowedSubscriptions": [
         {
@@ -2395,8 +1882,8 @@
       "_Comments": [],
       "Name": "PenTesters",
       "AddressPrefixes": [
-        "78.129.217.224/27",
-        "212.38.169.64/27"
+        "212.38.169.64/27",
+        "78.129.217.224/27"
       ],
       "AllowedSubscriptions": [
         {
@@ -2413,12 +1900,12 @@
       "_Comments": [],
       "Name": "Perfecto",
       "AddressPrefixes": [
-        "52.57.77.28/32",
         "185.66.164.23/32",
         "185.66.164.60/32",
-        "185.66.165.4/32",
         "192.80.63.4/32",
-        "198.160.6.41/32"
+        "198.160.6.41/32",
+        "185.66.165.4/32",
+        "52.57.77.28/32"
       ],
       "AllowedSubscriptions": [
         {
@@ -2469,7 +1956,7 @@
       "_Comments": [],
       "Name": "plantuml.DEV",
       "AddressPrefixes": [
-        "4.207.93.196/32"
+        "4.208.85.127/32"
       ],
       "AllowedSubscriptions": [
         {
@@ -2482,9 +1969,9 @@
       "_Comments": [],
       "Name": "PRD.North.APIM",
       "AddressPrefixes": [
-        "13.79.232.123/32",
+        "20.82.200.6/31",
         "13.79.232.239/32",
-        "20.82.200.6/31"
+        "13.79.232.123/32"
       ],
       "AllowedSubscriptions": [
         {
@@ -2501,9 +1988,9 @@
       "_Comments": [],
       "Name": "PRD.West.APIM",
       "AddressPrefixes": [
-        "23.97.219.65/32",
+        "51.105.216.10/31",
         "23.97.219.238/32",
-        "51.105.216.10/31"
+        "23.97.219.65/32"
       ],
       "AllowedSubscriptions": [
         {
@@ -2518,30 +2005,14 @@
     },
     {
       "_Comments": [],
-      "Name": "ReTool.PoC",
-      "AddressPrefixes": [
-        "127.0.0.1/32"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "DAL-Deprecated",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
       "Name": "RPA.PRD",
       "AddressPrefixes": [
-        "20.71.0.60/31",
         "40.69.201.120/32",
-        "51.11.138.58/32",
+        "52.236.27.67/32",
+        "52.236.27.253/32",
         "51.124.87.21/32",
         "51.124.87.70/32",
-        "51.124.87.130/32",
-        "52.151.104.2/31",
-        "52.236.27.67/32",
-        "52.236.27.253/32"
+        "51.124.87.130/32"
       ],
       "AllowedSubscriptions": [
         {
@@ -2558,8 +2029,8 @@
       "_Comments": [],
       "Name": "RPA.UAT",
       "AddressPrefixes": [
-        "20.16.137.86/32",
-        "52.146.155.223/32"
+        "52.146.155.223/32",
+        "20.16.137.86/32"
       ],
       "AllowedSubscriptions": [
         {
@@ -2628,11 +2099,16 @@
       "_Comments": [],
       "Name": "Sabio",
       "AddressPrefixes": [
-        "127.0.0.1/32"
+        "10.203.8.160/32",
+        "10.203.8.60/32"
       ],
       "AllowedSubscriptions": [
         {
-          "SubscriptionName": "DAL-Deprecated",
+          "SubscriptionName": "Digital-DEV",
+          "IsMandatory": "False"
+        },
+        {
+          "SubscriptionName": "Digital-UAT",
           "IsMandatory": "False"
         }
       ]
@@ -2641,12 +2117,20 @@
       "_Comments": [],
       "Name": "Sandbox.Private",
       "AddressPrefixes": [
-        "127.0.0.1/32"
+        "10.185.0.21/32"
       ],
       "AllowedSubscriptions": [
         {
-          "SubscriptionName": "DAL-Deprecated",
-          "IsMandatory": "False"
+          "SubscriptionName": "Digital-DEV",
+          "IsMandatory": "True"
+        },
+        {
+          "SubscriptionName": "NDC-EU-PE-STG-NDC",
+          "IsMandatory": "True"
+        },
+        {
+          "SubscriptionName": "NDC-EU-PE-DEV-NDC",
+          "IsMandatory": "True"
         }
       ]
     },
@@ -2723,9 +2207,6 @@
       "_Comments": [],
       "Name": "Stratus.GitHubRunners.DevStgPrd",
       "AddressPrefixes": [
-        "4.180.69.33/32",
-        "13.69.217.96/32",
-        "13.74.49.192/32",
         "137.135.161.8/32"
       ],
       "AllowedSubscriptions": [
@@ -2747,9 +2228,6 @@
       "_Comments": [],
       "Name": "Stratus.pd36.Subnet.dev",
       "AddressPrefixes": [
-        "4.180.69.33/32",
-        "13.69.217.96/32",
-        "13.74.49.192/32",
         "137.135.161.8/32"
       ],
       "AllowedSubscriptions": [
@@ -2779,9 +2257,9 @@
         "31.193.138.158/32",
         "31.193.138.159/32",
         "31.193.138.161/32",
+        "92.48.96.200/29",
         "46.101.57.56/32",
         "46.101.81.198/32",
-        "92.48.96.200/29",
         "139.59.161.28/32",
         "139.59.174.120/32",
         "139.59.175.198/32",
@@ -2881,21 +2359,21 @@
       "_Comments": [],
       "Name": "Tester.VM.Citrix",
       "AddressPrefixes": [
-        "13.79.243.149/32",
-        "40.112.66.234/32",
-        "40.112.68.11/32",
-        "40.112.70.168/32",
-        "40.115.124.243/32",
-        "52.138.141.5/32",
-        "52.138.223.158/32",
         "52.164.226.52/32",
+        "52.169.156.31/32",
+        "52.169.253.6/32",
+        "52.138.141.5/32",
+        "52.169.236.60/32",
         "52.169.0.96/32",
         "52.169.105.99/32",
-        "52.169.156.31/32",
-        "52.169.236.60/32",
-        "52.169.253.6/32",
+        "13.79.243.149/32",
         "52.178.215.171/32",
-        "52.178.231.4/32"
+        "52.138.223.158/32",
+        "52.178.231.4/32",
+        "40.115.124.243/32",
+        "40.112.66.234/32",
+        "40.112.70.168/32",
+        "40.112.68.11/32"
       ],
       "AllowedSubscriptions": [
         {
@@ -2934,12 +2412,12 @@
       "_Comments": [],
       "Name": "UAT.APIM",
       "AddressPrefixes": [
-        "20.101.168.98/31",
         "20.166.128.132/31",
-        "51.137.83.69/32",
-        "51.137.115.30/32",
+        "20.101.168.98/31",
         "52.156.221.13/32",
-        "52.156.221.18/32"
+        "52.156.221.18/32",
+        "51.137.83.69/32",
+        "51.137.115.30/32"
       ],
       "AllowedSubscriptions": [
         {
@@ -3153,8 +2631,10 @@
       "_Comments": [],
       "Name": "W365Desktops",
       "AddressPrefixes": [
+        "4.234.198.232/32",
         "20.82.9.32/31",
-        "51.104.248.128/31"
+        "51.104.248.128/31",
+        "20.229.98.121/32"
       ],
       "AllowedSubscriptions": [
         {
@@ -3203,10 +2683,7 @@
       "_Comments": [],
       "Name": "YLD",
       "AddressPrefixes": [
-        "3.9.74.123/32",
-        "18.130.193.134/32",
-        "18.135.169.152/32",
-        "35.176.176.193/32"
+        "18.135.169.152/32"
       ],
       "AllowedSubscriptions": [
         {
@@ -3247,31 +2724,25 @@
       "_Comments": [],
       "Name": "zscaler",
       "AddressPrefixes": [
+        "147.161.132.0/23",
+        "147.161.172.0/23",
+        "165.225.240.0/23",
+        "170.85.78.0/23",
+        "185.46.212.0/23",
+        "147.161.166.0/23",
+        "147.161.224.0/23",
+        "165.225.80.0/22",
+        "170.85.58.0/23",
         "136.226.166.0/23",
         "136.226.168.0/23",
-        "136.226.190.0/23",
-        "147.161.132.0/23",
         "147.161.140.0/23",
         "147.161.142.0/23",
         "147.161.144.0/23",
-        "147.161.156.0/23",
-        "147.161.166.0/23",
-        "147.161.172.0/23",
-        "147.161.224.0/23",
+        "136.226.190.0/23",
         "147.161.236.0/23",
-        "165.225.80.0/22",
         "165.225.196.0/23",
         "165.225.198.0/23",
-        "165.225.240.0/23",
-        "167.103.218.0/23",
-        "170.85.58.0/23",
-        "170.85.62.0/23",
-        "170.85.64.0/23",
-        "170.85.78.0/23",
         "170.85.84.0/23",
-        "170.85.232.0/23",
-        "170.85.234.0/23",
-        "185.46.212.0/23",
         "194.9.106.0/23",
         "194.9.108.0/23",
         "194.9.110.0/23",
@@ -3357,66 +2828,10 @@
     },
     {
       "_Comments": [],
-      "Name": "A05.Bastion.PRD.Subnet",
-      "SubnetIds": [
-        "/subscriptions/07c4309c-bb14-4914-af06-cabf184c6ced/resourceGroups/rg-ndt-neu-prd-infra-vnet-02/providers/Microsoft.Network/virtualNetworks/vnet-ndt-neu-prd-infra-02/subnets/snet-ndt-neu-prd-a05-bts-01",
-        "/subscriptions/07c4309c-bb14-4914-af06-cabf184c6ced/resourceGroups/rg-ndt-weu-prd-infra-vnet-02/providers/Microsoft.Network/virtualNetworks/vnet-ndt-weu-prd-infra-02/subnets/snet-ndt-weu-prd-a05-bts-01"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDT-EU-PE-PRD-A05",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
-      "Name": "A05.Bastion.STG.Subnet",
-      "SubnetIds": [
-        "/subscriptions/219d958c-de92-434d-a945-ca93379bfe10/resourceGroups/rg-ndt-neu-stg-infra-vnet-02/providers/Microsoft.Network/virtualNetworks/vnet-ndt-neu-stg-infra-02/subnets/snet-ndt-neu-stg-a05-bts-01",
-        "/subscriptions/219d958c-de92-434d-a945-ca93379bfe10/resourceGroups/rg-ndt-weu-stg-infra-vnet-02/providers/Microsoft.Network/virtualNetworks/vnet-ndt-weu-stg-infra-02/subnets/snet-ndt-weu-stg-a05-bts-01"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDT-EU-PE-STG-A05",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
       "Name": "A06.AcquisitionApi.Subnets.Staging",
       "SubnetIds": [
         "/subscriptions/dcdd0432-6bbd-48aa-95a4-62f3d99ed5c8/resourceGroups/rga06s1peplatshr01/providers/Microsoft.Network/virtualNetworks/vnet-ndt-neu-stg-a06-01/subnets/nsbnt-apspla06s1placqashr0101",
         "/subscriptions/dcdd0432-6bbd-48aa-95a4-62f3d99ed5c8/resourceGroups/rga06s2peplatshr01/providers/Microsoft.Network/virtualNetworks/vnet-ndt-weu-stg-a06-01/subnets/nsbnt-apspla06s2placqashr0101"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDT-EU-PE-STG-A06",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
-      "Name": "A06.Bastion.PRD.Subnet",
-      "SubnetIds": [
-        "/subscriptions/07c4309c-bb14-4914-af06-cabf184c6ced/resourceGroups/rg-ndt-neu-prd-infra-vnet-02/providers/Microsoft.Network/virtualNetworks/vnet-ndt-neu-prd-infra-02/subnets/snet-ndt-neu-prd-a06-bts-01",
-        "/subscriptions/07c4309c-bb14-4914-af06-cabf184c6ced/resourceGroups/rg-ndt-weu-prd-infra-vnet-02/providers/Microsoft.Network/virtualNetworks/vnet-ndt-weu-prd-infra-02/subnets/snet-ndt-weu-prd-a06-bts-01"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDT-EU-PE-PRD-A06",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
-      "Name": "A06.Bastion.STG.Subnet",
-      "SubnetIds": [
-        "/subscriptions/219d958c-de92-434d-a945-ca93379bfe10/resourceGroups/rg-ndt-neu-stg-infra-vnet-02/providers/Microsoft.Network/virtualNetworks/vnet-ndt-neu-stg-infra-02/subnets/snet-ndt-neu-stg-a06-bts-01",
-        "/subscriptions/219d958c-de92-434d-a945-ca93379bfe10/resourceGroups/rg-ndt-weu-stg-infra-vnet-02/providers/Microsoft.Network/virtualNetworks/vnet-ndt-weu-stg-infra-02/subnets/snet-ndt-weu-stg-a06-bts-01"
       ],
       "AllowedSubscriptions": [
         {
@@ -3603,103 +3018,6 @@
     },
     {
       "_Comments": [],
-      "Name": "AVX.a05.prd.Subnets",
-      "SubnetIds": [
-        "/subscriptions/8d4886ab-4f54-4c9b-9cec-7b42683b8db2/resourceGroups/rg-ndt-neu-prd-avx-vnet-01/providers/Microsoft.Network/virtualNetworks/vnet-ndt-neu-prd-avx-01/subnets/CloudConnector-A05",
-        "/subscriptions/8d4886ab-4f54-4c9b-9cec-7b42683b8db2/resourceGroups/rg-ndt-weu-prd-avx-vnet-01/providers/Microsoft.Network/virtualNetworks/vnet-ndt-weu-prd-avx-01/subnets/CloudConnector-A05"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDT-EU-PE-PRD-A05",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
-      "Name": "AVX.a05.stg.Subnets",
-      "SubnetIds": [
-        "/subscriptions/0df50bb0-4fc0-41f0-b0fa-8fe431dc3a8e/resourceGroups/rg-ndt-neu-stg-avx-vnet-01/providers/Microsoft.Network/virtualNetworks/vnet-ndt-neu-stg-avx-01/subnets/CloudConnector-A05",
-        "/subscriptions/0df50bb0-4fc0-41f0-b0fa-8fe431dc3a8e/resourceGroups/rg-ndt-weu-stg-avx-vnet-01/providers/Microsoft.Network/virtualNetworks/vnet-ndt-weu-stg-avx-01/subnets/CloudConnector-A05"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDT-EU-PE-STG-A05",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
-      "Name": "AVX.a06.prd.Subnets",
-      "SubnetIds": [
-        "/subscriptions/8d4886ab-4f54-4c9b-9cec-7b42683b8db2/resourceGroups/rg-ndt-neu-prd-avx-vnet-01/providers/Microsoft.Network/virtualNetworks/vnet-ndt-neu-prd-avx-01/subnets/CloudConnector-A06",
-        "/subscriptions/8d4886ab-4f54-4c9b-9cec-7b42683b8db2/resourceGroups/rg-ndt-weu-prd-avx-vnet-01/providers/Microsoft.Network/virtualNetworks/vnet-ndt-weu-prd-avx-01/subnets/CloudConnector-A06"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDT-EU-PE-PRD-A06",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
-      "Name": "AVX.a06.stg.Subnets",
-      "SubnetIds": [
-        "/subscriptions/0df50bb0-4fc0-41f0-b0fa-8fe431dc3a8e/resourceGroups/rg-ndt-neu-stg-avx-vnet-01/providers/Microsoft.Network/virtualNetworks/vnet-ndt-neu-stg-avx-01/subnets/CloudConnector-A06",
-        "/subscriptions/0df50bb0-4fc0-41f0-b0fa-8fe431dc3a8e/resourceGroups/rg-ndt-weu-stg-avx-vnet-01/providers/Microsoft.Network/virtualNetworks/vnet-ndt-weu-stg-avx-01/subnets/CloudConnector-A06"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDT-EU-PE-STG-A06",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
-      "Name": "AVX.ndt.dev.Subnets",
-      "SubnetIds": [
-        "/subscriptions/f2abc137-9ff1-4d35-9b51-453cfed80f85/resourceGroups/rg-ndt-neu-dev-avx-vnet-01/providers/Microsoft.Network/virtualNetworks/vnet-ndt-neu-dev-avx-01/subnets/CloudConnector-NDT"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDT-EU-PE-DEV-NDT",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
-      "Name": "AVX.ndt.prd.Subnets",
-      "SubnetIds": [
-        "/subscriptions/8d4886ab-4f54-4c9b-9cec-7b42683b8db2/resourceGroups/rg-ndt-neu-prd-avx-vnet-01/providers/Microsoft.Network/virtualNetworks/vnet-ndt-neu-prd-avx-01/subnets/CloudConnector-NDT",
-        "/subscriptions/8d4886ab-4f54-4c9b-9cec-7b42683b8db2/resourceGroups/rg-ndt-weu-prd-avx-vnet-01/providers/Microsoft.Network/virtualNetworks/vnet-ndt-weu-prd-avx-01/subnets/CloudConnector-NDT"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDT-EU-PE-PRD-NDT",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
-      "Name": "AVX.ndt.stg.Subnets",
-      "SubnetIds": [
-        "/subscriptions/0df50bb0-4fc0-41f0-b0fa-8fe431dc3a8e/resourceGroups/rg-ndt-neu-stg-avx-vnet-01/providers/Microsoft.Network/virtualNetworks/vnet-ndt-neu-stg-avx-01/subnets/CloudConnector-NDT",
-        "/subscriptions/0df50bb0-4fc0-41f0-b0fa-8fe431dc3a8e/resourceGroups/rg-ndt-weu-stg-avx-vnet-01/providers/Microsoft.Network/virtualNetworks/vnet-ndt-weu-stg-avx-01/subnets/CloudConnector-NDT"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDT-EU-PE-STG-NDT",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
       "Name": "Bastion.PRD.Subnet",
       "SubnetIds": [
         "/subscriptions/db139269-f03b-49dc-a414-306c02fac9cd/resourceGroups/rghubp1bast01/providers/Microsoft.Network/virtualNetworks/vnet-newday-hub-p1-bastion/subnets/AzureVMSubnet",
@@ -3726,7 +3044,7 @@
       "AllowedSubscriptions": [
         {
           "SubscriptionName": "NDT-EU-PE-PRD-A05",
-          "IsMandatory": "True"
+          "IsMandatory": "False"
         }
       ]
     },
@@ -3740,7 +3058,7 @@
       "AllowedSubscriptions": [
         {
           "SubscriptionName": "NDT-EU-PE-STG-A05",
-          "IsMandatory": "True"
+          "IsMandatory": "False"
         }
       ]
     },
@@ -3754,7 +3072,7 @@
       "AllowedSubscriptions": [
         {
           "SubscriptionName": "NDT-EU-PE-PRD-A06",
-          "IsMandatory": "True"
+          "IsMandatory": "False"
         }
       ]
     },
@@ -3768,7 +3086,7 @@
       "AllowedSubscriptions": [
         {
           "SubscriptionName": "NDT-EU-PE-STG-A06",
-          "IsMandatory": "True"
+          "IsMandatory": "False"
         }
       ]
     },
@@ -3781,7 +3099,7 @@
       "AllowedSubscriptions": [
         {
           "SubscriptionName": "NDC-EU-PE-DEV-NDC",
-          "IsMandatory": "True"
+          "IsMandatory": "False"
         }
       ]
     },
@@ -3795,7 +3113,7 @@
       "AllowedSubscriptions": [
         {
           "SubscriptionName": "NDC-EU-PE-PRD-NDC",
-          "IsMandatory": "True"
+          "IsMandatory": "False"
         }
       ]
     },
@@ -3809,7 +3127,7 @@
       "AllowedSubscriptions": [
         {
           "SubscriptionName": "NDC-EU-PE-STG-NDC",
-          "IsMandatory": "True"
+          "IsMandatory": "False"
         }
       ]
     },
@@ -3822,7 +3140,7 @@
       "AllowedSubscriptions": [
         {
           "SubscriptionName": "NDT-EU-PE-DEV-NDT",
-          "IsMandatory": "True"
+          "IsMandatory": "False"
         }
       ]
     },
@@ -3836,7 +3154,7 @@
       "AllowedSubscriptions": [
         {
           "SubscriptionName": "NDT-EU-PE-PRD-NDT",
-          "IsMandatory": "True"
+          "IsMandatory": "False"
         }
       ]
     },
@@ -3850,7 +3168,7 @@
       "AllowedSubscriptions": [
         {
           "SubscriptionName": "NDT-EU-PE-STG-NDT",
-          "IsMandatory": "True"
+          "IsMandatory": "False"
         }
       ]
     },
@@ -3931,74 +3249,15 @@
     },
     {
       "_Comments": [],
-      "Name": "NDC1.CustomerLegacyClients.Subnets.Development",
-      "SubnetIds": [
-        "/subscriptions/0f8b9bd9-53ae-4493-9477-e048ca720641/resourceGroups/rgngdshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngdshrg0101/subnets/nsbnt-apsvcngdmarb0101",
-        "/subscriptions/0f8b9bd9-53ae-4493-9477-e048ca720641/resourceGroups/rgngdshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngdshrg0101/subnets/nsbnt-apsvcngdflui0101",
-        "/subscriptions/0f8b9bd9-53ae-4493-9477-e048ca720641/resourceGroups/rgngdshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngdshrg0101/subnets/nsbnt-apsvcngdopus0101",
-        "/subscriptions/0f8b9bd9-53ae-4493-9477-e048ca720641/resourceGroups/rgngdshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngdshrg0101/subnets/nsbnt-apsvcngdchapi0101"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDC-EU-PE-DEV-NDC",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "Digital-DEV",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
-      "Name": "NDC1.CustomerLegacyClients.Subnets.Production",
-      "SubnetIds": [
-        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgngpshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngpshrg0101/subnets/nsbnt-apsvcngpmarb0101",
-        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgngpshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngpshrg0101/subnets/nsbnt-apsvcngpflui0101",
-        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgngpshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngpshrg0101/subnets/nsbnt-apsvcngpopus0101",
-        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgngpshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngpshrg0101/subnets/nsbnt-apsvcngpchapi0101",
-        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgnppshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnppshrg0101/subnets/nsbnt-apsvcnppmarb0101",
-        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgnppshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnppshrg0101/subnets/nsbnt-apsvcnppflui0101",
-        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgnppshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnppshrg0101/subnets/nsbnt-apsvcnppopus0101",
-        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgnppshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnppshrg0101/subnets/nsbnt-apsvcnppchapi0101"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDC-EU-PE-PRD-NDC",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "Digital-PRD",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
-      "Name": "NDC1.CustomerLegacyClients.Subnets.Staging",
-      "SubnetIds": [
-        "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgngushrg01/providers/Microsoft.Network/virtualNetworks/nvnetngushrg0101/subnets/nsbnt-apsvcngumarb0101",
-        "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgngushrg01/providers/Microsoft.Network/virtualNetworks/nvnetngushrg0101/subnets/nsbnt-apsvcnguflui0101",
-        "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgngushrg01/providers/Microsoft.Network/virtualNetworks/nvnetngushrg0101/subnets/nsbnt-apsvcnguopus0101",
-        "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgngushrg01/providers/Microsoft.Network/virtualNetworks/nvnetngushrg0101/subnets/nsbnt-apsvcnguchapi0101"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDC-EU-PE-STG-NDC",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "Digital-UAT",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
       "Name": "NDC1.LegacyAcquisitionApi.Subnets.Development",
       "SubnetIds": [
+        "/subscriptions/0f8b9bd9-53ae-4493-9477-e048ca720641/resourceGroups/rgngdshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngdshrg0101/subnets/nsbnt-funapngdcboma0101",
+        "/subscriptions/0f8b9bd9-53ae-4493-9477-e048ca720641/resourceGroups/rgngdshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngdshrg0101/subnets/nsbnt-funapngdaqpap0101",
+        "/subscriptions/0f8b9bd9-53ae-4493-9477-e048ca720641/resourceGroups/rgngdshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngdshrg0101/subnets/nsbnt-funapngdcbfy0101",
+        "/subscriptions/0f8b9bd9-53ae-4493-9477-e048ca720641/resourceGroups/rgngdshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngdshrg0101/subnets/nsbnt-funapngdcbfo0301",
         "/subscriptions/0f8b9bd9-53ae-4493-9477-e048ca720641/resourceGroups/rgngdshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngdshrg0101/subnets/nsbnt-funapngdfdpro0101",
-        "/subscriptions/0f8b9bd9-53ae-4493-9477-e048ca720641/resourceGroups/rgngdshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngdshrg0101/subnets/nsbnt-funapngdfdspl0101"
+        "/subscriptions/0f8b9bd9-53ae-4493-9477-e048ca720641/resourceGroups/rgngdshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngdshrg0101/subnets/nsbnt-funapngdfdspl0101",
+        "/subscriptions/0f8b9bd9-53ae-4493-9477-e048ca720641/resourceGroups/rgngdshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngdshrg0101/subnets/nsbnt-funapngdaqapa0101"
       ],
       "AllowedSubscriptions": [
         {
@@ -4015,10 +3274,20 @@
       "_Comments": [],
       "Name": "NDC1.LegacyAcquisitionApi.Subnets.Production",
       "SubnetIds": [
+        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgngpshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngpshrg0101/subnets/nsbnt-funapngpcboma0101",
+        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgngpshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngpshrg0101/subnets/nsbnt-funapngpaqpap0101",
+        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgngpshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngpshrg0101/subnets/nsbnt-funapngpcbfy0101",
+        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgngpshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngpshrg0101/subnets/nsbnt-funapngpcbfo0301",
         "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgngpshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngpshrg0101/subnets/nsbnt-funapngpfdpro0101",
         "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgngpshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngpshrg0101/subnets/nsbnt-funapngpfdspl0101",
+        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgngpshrg01/providers/Microsoft.Network/virtualNetworks/nvnetngpshrg0101/subnets/nsbnt-funapngpaqapa0101",
+        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgnppshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnppshrg0101/subnets/nsbnt-funapnppcboma0101",
+        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgnppshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnppshrg0101/subnets/nsbnt-funapnppaqpap0101",
+        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgnppshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnppshrg0101/subnets/nsbnt-funapnppcbfy0101",
+        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgnppshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnppshrg0101/subnets/nsbnt-funapnppcbfo0301",
         "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgnppshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnppshrg0101/subnets/nsbnt-funapnppfdpro0101",
-        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgnppshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnppshrg0101/subnets/nsbnt-funapnppfdspl0101"
+        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgnppshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnppshrg0101/subnets/nsbnt-funapnppfdspl0101",
+        "/subscriptions/57effcb3-b94c-4408-948b-de6afbbdb13c/resourceGroups/rgnppshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnppshrg0101/subnets/nsbnt-funapnppaqapa0101"
       ],
       "AllowedSubscriptions": [
         {
@@ -4035,10 +3304,20 @@
       "_Comments": [],
       "Name": "NDC1.LegacyAcquisitionApi.Subnets.Staging",
       "SubnetIds": [
+        "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgngushrg01/providers/Microsoft.Network/virtualNetworks/nvnetngushrg0101/subnets/nsbnt-funapngucboma0101",
+        "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgngushrg01/providers/Microsoft.Network/virtualNetworks/nvnetngushrg0101/subnets/nsbnt-funapnguaqpap0101",
+        "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgngushrg01/providers/Microsoft.Network/virtualNetworks/nvnetngushrg0101/subnets/nsbnt-funapngucbfy0101",
+        "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgngushrg01/providers/Microsoft.Network/virtualNetworks/nvnetngushrg0101/subnets/nsbnt-funapngucbfo0301",
         "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgngushrg01/providers/Microsoft.Network/virtualNetworks/nvnetngushrg0101/subnets/nsbnt-funapngufdpro0101",
         "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgngushrg01/providers/Microsoft.Network/virtualNetworks/nvnetngushrg0101/subnets/nsbnt-funapngufdspl0101",
+        "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgngushrg01/providers/Microsoft.Network/virtualNetworks/nvnetngushrg0101/subnets/nsbnt-funapnguaqapa0101",
+        "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgnftshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnftshrg0101/subnets/nsbnt-funapnftcboma0101",
+        "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgnftshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnftshrg0101/subnets/nsbnt-funapnftaqpap0101",
+        "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgnftshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnftshrg0101/subnets/nsbnt-funapnftcbfy0101",
+        "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgnftshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnftshrg0101/subnets/nsbnt-funapnftcbfo0301",
         "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgnftshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnftshrg0101/subnets/nsbnt-funapnftfdpro0101",
-        "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgnftshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnftshrg0101/subnets/nsbnt-funapnftfdspl0101"
+        "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgnftshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnftshrg0101/subnets/nsbnt-funapnftfdspl0101",
+        "/subscriptions/8aae5d53-f263-479e-959c-0c67619ac334/resourceGroups/rgnftshrg01/providers/Microsoft.Network/virtualNetworks/nvnetnftshrg0101/subnets/nsbnt-funapnftaqapa0101"
       ],
       "AllowedSubscriptions": [
         {
@@ -6259,38 +5538,6 @@
     },
     {
       "_Comments": [],
-      "Name": "NDT.Bastion.PRD.Subnet",
-      "SubnetIds": [
-        "/subscriptions/07c4309c-bb14-4914-af06-cabf184c6ced/resourceGroups/rg-ndt-neu-prd-infra-vnet-02/providers/Microsoft.Network/virtualNetworks/vnet-ndt-neu-prd-infra-02/subnets/snet-ndt-neu-prd-infra-bts-01",
-        "/subscriptions/07c4309c-bb14-4914-af06-cabf184c6ced/resourceGroups/rg-ndt-weu-prd-infra-vnet-02/providers/Microsoft.Network/virtualNetworks/vnet-ndt-weu-prd-infra-02/subnets/snet-ndt-weu-prd-infra-bts-01"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDT-EU-PE-PRD-NDT",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
-      "Name": "NDT.Bastion.STG.Subnet",
-      "SubnetIds": [
-        "/subscriptions/219d958c-de92-434d-a945-ca93379bfe10/resourceGroups/rg-ndt-neu-stg-infra-vnet-02/providers/Microsoft.Network/virtualNetworks/vnet-ndt-neu-stg-infra-02/subnets/snet-ndt-neu-stg-infra-bts-01",
-        "/subscriptions/219d958c-de92-434d-a945-ca93379bfe10/resourceGroups/rg-ndt-weu-stg-infra-vnet-02/providers/Microsoft.Network/virtualNetworks/vnet-ndt-weu-stg-infra-02/subnets/snet-ndt-weu-stg-infra-bts-01"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDT-EU-PE-STG-NDT",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-DEV-NDT",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
       "Name": "NDT.TeamCity.Agents.Subnet",
       "SubnetIds": [
         "/subscriptions/e1627e13-3267-41f1-ac4e-d712fbc5e3d3/resourceGroups/rgndtd1peplatshr01/providers/Microsoft.Network/virtualNetworks/vnet-ndt-neu-dev-rmagent-01/subnets/snet-ndt-neu-dev-teamcity-01"
@@ -6543,10 +5790,13 @@
     {
       "_Comments": [],
       "Name": "Stratus.creditrisk.eeg.Subnet.NDCD1",
-      "SubnetIds": [],
+      "SubnetIds": [
+        "/subscriptions/731cf912-0f5b-4f03-ad2a-eb913c042a99/resourceGroups/rg-core-ndt-cr-eeg-eastus241c48b1e/providers/Microsoft.Network/virtualNetworks/vnet-ndt-cr-eeg-eastus23435103a/subnets/service-subnet",
+        "/subscriptions/731cf912-0f5b-4f03-ad2a-eb913c042a99/resourceGroups/rg-core-ndt-cr-eeg-centralus771f354a/providers/Microsoft.Network/virtualNetworks/vnet-ndt-cr-eeg-centralusecf9b02d/subnets/service-subnet"
+      ],
       "AllowedSubscriptions": [
         {
-          "SubscriptionName": "DAL-Deprecated",
+          "SubscriptionName": "NDC-EU-PE-DEV-NDC",
           "IsMandatory": "False"
         }
       ]
@@ -6554,10 +5804,13 @@
     {
       "_Comments": [],
       "Name": "Stratus.creditrisk.eeg.Subnet.NDCP1",
-      "SubnetIds": [],
+      "SubnetIds": [
+        "/subscriptions/696a33f2-b81c-4818-a92a-bb0ede7f5d84/resourceGroups/rg-core-ndt-cr-eeg-northeurope2816dbd3/providers/Microsoft.Network/virtualNetworks/vnet-ndt-cr-eeg-northeurope9ff20cd6/subnets/service-subnet",
+        "/subscriptions/696a33f2-b81c-4818-a92a-bb0ede7f5d84/resourceGroups/rg-core-ndt-cr-eeg-westeurope570f58e2/providers/Microsoft.Network/virtualNetworks/vnet-ndt-cr-eeg-westeurope5f4b921e/subnets/service-subnet"
+      ],
       "AllowedSubscriptions": [
         {
-          "SubscriptionName": "DAL-Deprecated",
+          "SubscriptionName": "NDC-EU-PE-PRD-NDC",
           "IsMandatory": "False"
         }
       ]
@@ -6565,10 +5818,13 @@
     {
       "_Comments": [],
       "Name": "Stratus.creditrisk.eeg.Subnet.NDCS1",
-      "SubnetIds": [],
+      "SubnetIds": [
+        "/subscriptions/6637438c-d86c-43c1-bd3c-6845ab828281/resourceGroups/rg-core-ndt-cr-eeg-westeurope13b769e5/providers/Microsoft.Network/virtualNetworks/vnet-ndt-cr-eeg-westeurope1fac7d7f/subnets/service-subnet",
+        "/subscriptions/6637438c-d86c-43c1-bd3c-6845ab828281/resourceGroups/rg-core-ndt-cr-eeg-northeurope6d277970/providers/Microsoft.Network/virtualNetworks/vnet-ndt-cr-eeg-northeuropef37e9a55/subnets/service-subnet"
+      ],
       "AllowedSubscriptions": [
         {
-          "SubscriptionName": "DAL-Deprecated",
+          "SubscriptionName": "NDC-EU-PE-STG-NDC",
           "IsMandatory": "False"
         }
       ]
@@ -6708,42 +5964,6 @@
         },
         {
           "SubscriptionName": "NDC-EU-PE-DEV-NDC",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
-      "Name": "Wiz.ndc.prd.Subnets",
-      "SubnetIds": [
-        "/subscriptions/e37efc01-4c99-412f-afa7-5dab6b49bda1/resourceGroups/rg-ndc-neu-prd-wiz-vnet-01/providers/Microsoft.Network/virtualNetworks/vnet-ndc-neu-prd-wiz-01/subnets/snet-ndc-neu-prd-wiz-01",
-        "/subscriptions/e37efc01-4c99-412f-afa7-5dab6b49bda1/resourceGroups/rg-ndc-weu-prd-wiz-vnet-01/providers/Microsoft.Network/virtualNetworks/vnet-ndc-weu-prd-wiz-01/subnets/snet-ndc-weu-prd-wiz-01"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDC-EU-PE-PRD-NDC",
-          "IsMandatory": "False"
-        }
-      ]
-    },
-    {
-      "_Comments": [],
-      "Name": "Wiz.ndt.prd.Subnets",
-      "SubnetIds": [
-        "/subscriptions/b56e884b-019b-4ba0-bd16-9f9d1dccecc6/resourceGroups/rg-ndt-neu-prd-wiz-vnet-01/providers/Microsoft.Network/virtualNetworks/vnet-ndt-neu-prd-wiz-01/subnets/snet-ndt-neu-prd-wiz-01",
-        "/subscriptions/b56e884b-019b-4ba0-bd16-9f9d1dccecc6/resourceGroups/rg-ndt-weu-prd-wiz-vnet-01/providers/Microsoft.Network/virtualNetworks/vnet-ndt-weu-prd-wiz-01/subnets/snet-ndt-weu-prd-wiz-01"
-      ],
-      "AllowedSubscriptions": [
-        {
-          "SubscriptionName": "NDT-EU-PE-PRD-A05",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-PRD-A06",
-          "IsMandatory": "False"
-        },
-        {
-          "SubscriptionName": "NDT-EU-PE-PRD-NDT",
           "IsMandatory": "False"
         }
       ]

@@ -1,10 +1,13 @@
-﻿using DynamicAllowListingLib.Logging;
+﻿using Azure.Core;
+using Azure.Identity;
+using DynamicAllowListingLib.Logging;
 using Microsoft.Azure.Services.AppAuthentication;
 using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Retry;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -21,6 +24,8 @@ namespace DynamicAllowListingLib
     private readonly AsyncRetryPolicy<HttpResponseMessage> _httpRetryPolicy;
     private readonly ILogger<RestHelper> _logger;
     private readonly HttpClient _httpClient;
+
+    private AccessToken _cachedToken;
 
     public RestHelper(ILogger<RestHelper> logger, HttpClient httpClient)
     {
@@ -78,17 +83,17 @@ namespace DynamicAllowListingLib
         catch (HttpRequestException ex)
         {
           _logger.LogHttpGetFailed(ex, sanitizedUrl, "HttpRequestException");
-          throw new Exception($"HTTP GET operation failed for URL: {sanitizedUrl}. Check inner exception for details.", ex);
+          throw new Exception($"HTTP GET request failed for URL: {sanitizedUrl}", ex);
         }
         catch (TaskCanceledException ex)
         {
           _logger.LogHttpGetFailed(ex, sanitizedUrl, "Timeout");
-          throw new Exception($"HTTP GET operation timed out for URL: {sanitizedUrl}.", ex);
+          throw new Exception($"HTTP GET request timed out for URL: {sanitizedUrl}", ex);
         }
         catch (Exception ex)
         {
           _logger.LogHttpGetFailed(ex, sanitizedUrl, ex.GetType().Name);
-          throw new Exception($"Unexpected error during HTTP GET for URL: {sanitizedUrl}.", ex);
+          throw new Exception($"Unexpected error during HTTP GET for URL: {sanitizedUrl}", ex);
         }
       }
     }
@@ -123,12 +128,12 @@ namespace DynamicAllowListingLib
         catch (HttpRequestException ex)
         {
           _logger.LogHttpPostFailed(ex, sanitizedUrl, "HttpRequestException");
-          throw new Exception($"HTTP POST operation failed for URL: {sanitizedUrl}. Check inner exception for details.", ex);
+          throw new Exception($"HTTP POST request failed for URL: {sanitizedUrl}. Check inner exception for details.", ex);
         }
         catch (TaskCanceledException ex)
         {
           _logger.LogHttpPostFailed(ex, sanitizedUrl, "Timeout");
-          throw new Exception($"HTTP POST operation timed out for URL: {sanitizedUrl}.", ex);
+          throw new Exception($"HTTP POST request timed out for URL: {sanitizedUrl}.", ex);
         }
         catch (Exception ex)
         {
@@ -143,7 +148,6 @@ namespace DynamicAllowListingLib
     {
       var sanitizedUrl = SanitizeString(url);
       var requestBodySize = requestBodyJsonAsString?.Length ?? 0;
-
       using (_logger.BeginHttpOperationScope("PUT", sanitizedUrl))
       {
         _logger.LogHttpPut(sanitizedUrl, requestBodySize);
@@ -188,7 +192,6 @@ namespace DynamicAllowListingLib
     {
       var sanitizedUrl = SanitizeString(url);
       var requestBodySize = requestBodyJsonAsString?.Length ?? 0;
-
       using (_logger.BeginHttpOperationScope("PATCH", sanitizedUrl))
       {
         _logger.LogHttpPatch(sanitizedUrl, requestBodySize);
@@ -213,7 +216,7 @@ namespace DynamicAllowListingLib
         catch (HttpRequestException ex)
         {
           _logger.LogHttpPatchFailed(ex, sanitizedUrl, "HttpRequestException");
-          throw new Exception($"HTTP PATCH operation failed for URL: {sanitizedUrl}. Check inner exception for details.", ex);
+          throw new Exception($"HTTP PATCH operation failed for URL: {sanitizedUrl}. See inner exception for details.", ex);
         }
         catch (TaskCanceledException ex)
         {
@@ -232,7 +235,6 @@ namespace DynamicAllowListingLib
     public async Task DoDelete(string url)
     {
       var sanitizedUrl = SanitizeString(url);
-
       using (_logger.BeginHttpOperationScope("DELETE", sanitizedUrl))
       {
         _logger.LogHttpDelete(sanitizedUrl);
@@ -280,14 +282,24 @@ namespace DynamicAllowListingLib
 
       try
       {
+        // Check if the cached token is still valid
+        if (_cachedToken.Token != null && _cachedToken.ExpiresOn > DateTimeOffset.UtcNow.AddMinutes(5))
+        {
+          var expiresInMinutes = (_cachedToken.ExpiresOn - DateTimeOffset.UtcNow).TotalMinutes;
+          _logger.LogAccessTokenCached(expiresInMinutes);
+          return _cachedToken.Token;
+        }
+
         _logger.LogAccessTokenRequest(baseUrl);
 
-        var azureServiceTokenProvider = new AzureServiceTokenProvider();
-        var token = await azureServiceTokenProvider.GetAccessTokenAsync(baseUrl);
+        // Retrieve new access token using DefaultAzureCredential
+        var credential = new DefaultAzureCredential();
+        var tokenRequestContext = new TokenRequestContext(new[] { $"{baseUrl}/.default" });
+        _cachedToken = await credential.GetTokenAsync(tokenRequestContext);
 
-        _logger.LogAccessTokenRetrieved(baseUrl);
+        _logger.LogAccessTokenRefreshed(_cachedToken.ExpiresOn);
 
-        return token;
+        return _cachedToken.Token;
       }
       catch (Exception ex)
       {
@@ -302,105 +314,71 @@ namespace DynamicAllowListingLib
 
     private async Task<HttpRequestMessage> CreateRequestAsync(HttpMethod method, string url, string? content = null)
     {
+      var sanitizedUrl = SanitizeString(url);
       var request = new HttpRequestMessage(method, url);
+
+      _logger.LogHttpRequestCreation(method.Method, sanitizedUrl);
+
       var token = await GetAccessToken(url);
       request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
       if (content != null)
       {
         request.Content = new StringContent(content, Encoding.UTF8, "application/json");
+        _logger.LogHttpRequestCreatedWithContent(method.Method, sanitizedUrl, content.Length);
       }
 
       return request;
     }
 
-    private async Task<string> GetValidResponse(HttpResponseMessage httpResponseMessage)
+    private static async Task<string> GetValidResponse(HttpResponseMessage response)
     {
-      if (httpResponseMessage == null)
-      {
-        throw new ArgumentNullException(nameof(httpResponseMessage), "HttpResponseMessage was null.");
-      }
-
-      var responseMsg = await httpResponseMessage.Content.ReadAsStringAsync();
-      if (string.IsNullOrEmpty(responseMsg))
-      {
-        throw new InvalidOperationException("Response content was found to be null or empty.");
-      }
-
-      return responseMsg;
+      var content = await response.Content.ReadAsStringAsync();
+      return content;
     }
 
-    private static bool ShouldRetryRequest(HttpResponseMessage httpResponseMessage)
+    private static bool ShouldRetryRequest(HttpResponseMessage response)
     {
-      if (httpResponseMessage.IsSuccessStatusCode)
-      {
-        return false;
-      }
-
-      return httpResponseMessage.StatusCode switch
-      {
-        (HttpStatusCode)429 => true,
-        HttpStatusCode.GatewayTimeout => true,
-        _ => false
-      };
+      return response.StatusCode == HttpStatusCode.TooManyRequests ||
+             response.StatusCode == HttpStatusCode.ServiceUnavailable ||
+             response.StatusCode == HttpStatusCode.GatewayTimeout ||
+             response.StatusCode == HttpStatusCode.RequestTimeout ||
+             (int)response.StatusCode >= 500;
     }
 
-    private TimeSpan GetServerWaitDuration(DelegateResult<HttpResponseMessage> response)
+    private static TimeSpan GetServerWaitDuration(DelegateResult<HttpResponseMessage> response)
     {
-      var responseHeaders = response?.Result?.Headers;
-
-      if (responseHeaders == null)
+      if (response.Result?.Headers.RetryAfter != null)
       {
-        return TimeSpan.Zero;
-      }
-
-      if (responseHeaders.TryGetValues("x-ms-user-quota-remaining", out IEnumerable<string>? quotaRemainingValues))
-      {
-        int remainingQuota = int.Parse(quotaRemainingValues.FirstOrDefault()!);
-        _logger.LogQuotaRemaining(remainingQuota);
-
-        if (remainingQuota == 0 && responseHeaders.TryGetValues("x-ms-user-quota-resets-after", out IEnumerable<string>? resetsAfterValues))
+        if (response.Result.Headers.RetryAfter.Delta.HasValue)
         {
-          TimeSpan resetsAfter = TimeSpan.Parse(resetsAfterValues.FirstOrDefault()!);
-          _logger.LogQuotaResetsAfter(resetsAfter);
+          return response.Result.Headers.RetryAfter.Delta.Value;
+        }
 
-          // Delay by a random period to avoid bursting when the quota is reset.
-          // Follow guidance https://docs.microsoft.com/en-us/azure/governance/resource-graph/concepts/guidance-for-throttled-requests#query-in-parallel
-          var delay = (new Random()).Next(1, 5) * resetsAfter;
-          return delay;
+        if (response.Result.Headers.RetryAfter.Date.HasValue)
+        {
+          return response.Result.Headers.RetryAfter.Date.Value - DateTimeOffset.UtcNow;
         }
       }
 
-      var retryAfter = responseHeaders?.RetryAfter;
-      if (retryAfter == null)
-      {
-        _logger.LogRetryAfterHeaderNull();
-        return TimeSpan.Zero;
-      }
-
-      var waitDuration = retryAfter.Date.HasValue
-          ? retryAfter.Date.Value - DateTime.UtcNow
-          : retryAfter.Delta.GetValueOrDefault(TimeSpan.Zero);
-
-      _logger.LogServerWaitDuration(waitDuration);
-      return waitDuration;
+      return TimeSpan.Zero;
     }
 
-    internal string GetBaseUrl(string url)
+    private static string GetBaseUrl(string url)
     {
-      string[] urlParts = url.Split('/');
-      StringBuilder stringBuilder = new StringBuilder();
-      stringBuilder.Append(urlParts[0]);
-      stringBuilder.Append("//");
-      stringBuilder.Append(urlParts[2]);
-      stringBuilder.Append('/');
-      return stringBuilder.ToString();
+      var uri = new Uri(url);
+      return $"{uri.Scheme}://{uri.Host}";
     }
 
-    internal static string SanitizeString(string url)
+    private static string SanitizeString(string input)
     {
-      var sanitizedUrl = url.Replace(Environment.NewLine, "").Replace("\n", "").Replace("\r", "");
-      return sanitizedUrl;
+      if (string.IsNullOrEmpty(input))
+        return string.Empty;
+
+      return input
+          .Replace(Environment.NewLine, "")
+          .Replace("\n", "")
+          .Replace("\r", "");
     }
 
     #endregion
