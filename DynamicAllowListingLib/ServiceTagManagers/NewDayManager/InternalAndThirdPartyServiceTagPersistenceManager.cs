@@ -82,7 +82,7 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
         {
           _logger.LogUpdatingServiceTags(internalAndThirdPartyServiceTagSetting.ServiceTags.Count);
           await _serviceTagsPersistenceManager.UpdateDatabaseStateTo(internalAndThirdPartyServiceTagSetting.ServiceTags);
-          _logger.LogServiceTagsUpdateCompleted(internalAndThirdPartyServiceTagSetting.ServiceTags.Count);
+          _logger.LogServiceTagsUpdateCompleted(internalAndThirdPartyServiceTagSetting.ServiceTags.Count,0,0);
           serviceTagsUpdated = true;
         }
         else

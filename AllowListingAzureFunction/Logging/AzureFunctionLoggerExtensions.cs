@@ -55,6 +55,15 @@ namespace AllowListingAzureFunction.Logging
         string operationId);
 
     [LoggerMessage(
+    EventId = 11514,
+    Level = LogLevel.Information,
+    Message = "Validation completed with warnings | OperationId: {OperationId} | WarningCount: {WarningCount}")]
+    public static partial void LogValidationCompletedWithWarnings(
+          this ILogger logger,
+          string operationId,
+          int warningCount);
+
+    [LoggerMessage(
         EventId = 11003,
         Level = LogLevel.Warning,
         Message = "HTTP function error response | Function: {FunctionName} | OperationId: {OperationId} | StatusCode: {StatusCode} | Reason: {Reason}")]

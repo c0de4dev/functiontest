@@ -45,7 +45,7 @@ namespace AllowListingAzureFunction
     {
       var operationId = Guid.NewGuid().ToString();
 
-      // *** CORRELATION FIX: Set correlation context for HTTP trigger ***
+      // Set correlation context for distributed tracing
       CorrelationContext.SetCorrelationId(operationId);
 
       using var loggerScope = _logger.BeginFunctionScope(FunctionName, operationId);
@@ -73,7 +73,7 @@ namespace AllowListingAzureFunction
 
         // Parse JSON
         _logger.LogParsingRequestJson(operationId);
-        var parseJsonResult = requestBody.TryParseJson(out InternalAndThirdPartyServiceTagSetting model);
+        var parseJsonResult = requestBody.TryParseJson(out InternalAndThirdPartyServiceTagSetting model, _logger);
 
         if (!parseJsonResult.Success)
         {
@@ -89,7 +89,13 @@ namespace AllowListingAzureFunction
           return new BadRequestObjectResult("Parsed model is null.");
         }
 
-        _logger.LogJsonParsedSuccessfully(operationId, "InternalAndThirdPartyServiceTagSetting");
+        _logger.LogJsonParsedSuccessfully(operationId, nameof(InternalAndThirdPartyServiceTagSetting));
+
+        // Log input summary after successful parsing
+        _logger.LogInputSummary(
+            operationId,
+            model.AzureSubscriptions?.Count ?? 0,
+            model.ServiceTags?.Count ?? 0);
 
         // Validate model
         _logger.LogValidatingModel(operationId);
@@ -98,12 +104,26 @@ namespace AllowListingAzureFunction
         if (!validationResult.Success)
         {
           _logger.LogModelValidationFailed(operationId, validationResult.Errors.Count);
+
+          // Log validation errors detail
+          if (validationResult.Errors.Count > 0)
+          {
+            _logger.LogOperationErrors(operationId, string.Join("; ", validationResult.Errors));
+          }
+
           operation.SetFailed("Validation failed");
           return new BadRequestObjectResult(validationResult);
         }
 
-        _logger.LogModelValidationSucceeded(operationId, "InternalAndThirdPartyServiceTagSetting");
-        _logger.LogHttpFunctionCompleted(FunctionName, operationId, 200, (long)operation.Elapsed.TotalMilliseconds);
+        _logger.LogModelValidationSucceeded(operationId, nameof(InternalAndThirdPartyServiceTagSetting));
+
+        // Log if there are warnings even on success
+        if (validationResult.Warnings.Count > 0)
+        {
+          _logger.LogValidationCompletedWithWarnings(operationId, validationResult.Warnings.Count);
+        }
+
+        _logger.LogHttpFunctionCompleted(FunctionName, operationId, 200, 0);
         operation.SetSuccess();
 
         return new OkObjectResult(validationResult);
@@ -122,7 +142,7 @@ namespace AllowListingAzureFunction
       }
       finally
       {
-        // *** CORRELATION FIX: Clear at end of function ***
+        // Clear correlation context at end of function
         CorrelationContext.Clear();
       }
     }

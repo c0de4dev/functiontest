@@ -6,7 +6,15 @@ namespace DynamicAllowListingLib.Logging
   /// <summary>
   /// High-performance structured logging extensions for Settings Validation operations.
   /// Uses LoggerMessage source generators for optimal performance.
-  /// EVENT ID RANGE: 11000-11499
+  /// EVENT ID RANGE: 11000-11549
+  /// 
+  /// EventId Allocation:
+  /// - 11000-11199: InternalAndThirdPartyServiceTagValidator
+  /// - 11200-11399: ResourceDependencyInformationValidator
+  /// - 11520-11549: JSON Parsing and Validation Summary
+  /// - 10115-10119: AzureSubscriptionsPersistenceManager
+  /// - 10170-10177: ServiceTagsPersistenceManager
+  /// - 10210-10214: InternalAndThirdPartyServiceTagPersistenceManager
   /// </summary>
   public static partial class ValidatorLoggerExtensions
   {
@@ -43,10 +51,30 @@ namespace DynamicAllowListingLib.Logging
     [LoggerMessage(
         EventId = 11004,
         Level = LogLevel.Error,
-        Message = "Exception occurred during validation")]
+        Message = "Exception occurred during validation | Method: {MethodName}")]
     public static partial void LogValidationException(
         this ILogger logger,
-        Exception exception);
+        Exception exception,
+        string methodName);
+
+    /// <summary>
+    /// Overload for logging validation exception without method name.
+    /// Calls the main LogValidationException with "Unknown" as method name.
+    /// </summary>
+    public static void LogValidationException(this ILogger logger, Exception exception)
+    {
+      LogValidationException(logger, exception, "Unknown");
+    }
+
+    [LoggerMessage(
+        EventId = 11005,
+        Level = LogLevel.Information,
+        Message = "Validation stage completed | Stage: {StageName} | Errors: {ErrorCount} | Warnings: {WarningCount}")]
+    public static partial void LogValidationStageCompleted(
+        this ILogger logger,
+        string stageName,
+        int errorCount,
+        int warningCount);
 
     #endregion
 
@@ -98,6 +126,61 @@ namespace DynamicAllowListingLib.Logging
         Message = "Address range validation completed successfully with no overlapping ranges.")]
     public static partial void LogAddressRangeValidationSuccess(this ILogger logger);
 
+    [LoggerMessage(
+        EventId = 11016,
+        Level = LogLevel.Debug,
+        Message = "Processing service tag for overlap validation | ServiceTag: {ServiceTagName} | AddressPrefixCount: {AddressCount}")]
+    public static partial void LogProcessingServiceTagForOverlap(
+        this ILogger logger,
+        string serviceTagName,
+        int addressCount);
+
+    [LoggerMessage(
+        EventId = 11017,
+        Level = LogLevel.Debug,
+        Message = "Address prefix tracked (no overlap) | ServiceTag: {ServiceTagName} | AddressPrefix: {AddressPrefix}")]
+    public static partial void LogAddressPrefixTracked(
+        this ILogger logger,
+        string serviceTagName,
+        string addressPrefix);
+
+    [LoggerMessage(
+        EventId = 11018,
+        Level = LogLevel.Information,
+        Message = "Address overlap validation summary | TotalAddressesProcessed: {TotalProcessed} | OverlapsDetected: {OverlapsFound} | ServiceTagsProcessed: {TagsProcessed}")]
+    public static partial void LogAddressOverlapSummary(
+        this ILogger logger,
+        int totalProcessed,
+        int overlapsFound,
+        int tagsProcessed);
+
+    [LoggerMessage(
+        EventId = 11019,
+        Level = LogLevel.Warning,
+        Message = "IP range overlap check failed: null or empty input | IpRange1: {IpRange1} | IpRange2: {IpRange2}")]
+    public static partial void LogIPRangeOverlapNullInput(
+        this ILogger logger,
+        string? ipRange1,
+        string? ipRange2);
+
+    [LoggerMessage(
+        EventId = 11020,
+        Level = LogLevel.Error,
+        Message = "Invalid CIDR format in overlap check | InvalidRange: {InvalidRange}")]
+    public static partial void LogIPRangeOverlapInvalidCIDR(
+        this ILogger logger,
+        string invalidRange);
+
+    [LoggerMessage(
+        EventId = 11021,
+        Level = LogLevel.Debug,
+        Message = "IP range overlap check | Range1: {IpRange1} | Range2: {IpRange2} | Overlaps: {Overlaps}")]
+    public static partial void LogIPRangeOverlapResult(
+        this ILogger logger,
+        string ipRange1,
+        string ipRange2,
+        bool overlaps);
+
     #endregion
 
     #region ValidateAllowedSubscriptionTags (11030-11049)
@@ -115,7 +198,6 @@ namespace DynamicAllowListingLib.Logging
     public static partial void LogAvailableAzureSubscriptions(
         this ILogger logger,
         string subscriptionList);
-
 
     [LoggerMessage(
         EventId = 11033,
@@ -147,6 +229,33 @@ namespace DynamicAllowListingLib.Logging
         Level = LogLevel.Information,
         Message = "Subscription allowed Service Tag validation completed successfully with no errors.")]
     public static partial void LogAllowedSubscriptionValidationSuccess(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = 11037,
+        Level = LogLevel.Debug,
+        Message = "Validating allowed subscriptions for service tag | ServiceTag: {ServiceTagName} | AllowedSubscriptionCount: {AllowedCount}")]
+    public static partial void LogValidatingServiceTagSubscriptions(
+        this ILogger logger,
+        string? serviceTagName,
+        int allowedCount);
+
+    [LoggerMessage(
+        EventId = 11038,
+        Level = LogLevel.Debug,
+        Message = "Valid allowed subscription reference | SubscriptionName: {SubscriptionName} | ServiceTag: {ServiceTagName}")]
+    public static partial void LogValidAllowedSubscription(
+        this ILogger logger,
+        string? subscriptionName,
+        string? serviceTagName);
+
+    [LoggerMessage(
+        EventId = 11039,
+        Level = LogLevel.Information,
+        Message = "Allowed subscription validation summary | ValidReferences: {ValidCount} | InvalidReferences: {InvalidCount}")]
+    public static partial void LogAllowedSubscriptionValidationSummary(
+        this ILogger logger,
+        int validCount,
+        int invalidCount);
 
     #endregion
 
@@ -212,6 +321,46 @@ namespace DynamicAllowListingLib.Logging
         Message = "Service Tag IP Address Validation completed successfully with no errors.")]
     public static partial void LogIPAddressValidationSuccess(this ILogger logger);
 
+    [LoggerMessage(
+        EventId = 11058,
+        Level = LogLevel.Debug,
+        Message = "Processing service tag for IP validation | ServiceTag: {ServiceTagName} | AddressPrefixes: {AddressCount} | SubnetIds: {SubnetCount}")]
+    public static partial void LogProcessingServiceTagForIPValidation(
+        this ILogger logger,
+        string? serviceTagName,
+        int addressCount,
+        int subnetCount);
+
+    [LoggerMessage(
+        EventId = 11059,
+        Level = LogLevel.Debug,
+        Message = "Valid CIDR address | ServiceTag: {ServiceTagName} | Address: {Address}")]
+    public static partial void LogValidAddressPrefix(
+        this ILogger logger,
+        string? serviceTagName,
+        string address);
+
+    [LoggerMessage(
+        EventId = 11060,
+        Level = LogLevel.Debug,
+        Message = "Valid subnet ID | ServiceTag: {ServiceTagName} | SubnetId: {SubnetId}")]
+    public static partial void LogValidSubnetIdProcessed(
+        this ILogger logger,
+        string? serviceTagName,
+        string subnetId);
+
+    [LoggerMessage(
+        EventId = 11061,
+        Level = LogLevel.Information,
+        Message = "IP validation summary | ServiceTagsProcessed: {TagCount} | ValidAddresses: {ValidAddresses} | InvalidAddresses: {InvalidAddresses} | ValidSubnets: {ValidSubnets} | InvalidSubnets: {InvalidSubnets}")]
+    public static partial void LogIPValidationSummary(
+        this ILogger logger,
+        int tagCount,
+        int validAddresses,
+        int invalidAddresses,
+        int validSubnets,
+        int invalidSubnets);
+
     #endregion
 
     #region ValidateAzureSubscriptionParameters (11070-11089)
@@ -248,7 +397,7 @@ namespace DynamicAllowListingLib.Logging
 
     [LoggerMessage(
         EventId = 11074,
-        Level = LogLevel.Information,
+        Level = LogLevel.Debug,
         Message = "Validated 'AzureSubscription.Id' as valid GUID. AzureSubscription.Id: {SubscriptionId}, AzureSubscription.Name: {SubscriptionName}")]
     public static partial void LogValidSubscriptionId(
         this ILogger logger,
@@ -269,13 +418,31 @@ namespace DynamicAllowListingLib.Logging
         Message = "Azure Subscription Validation completed successfully with no errors.")]
     public static partial void LogAzureSubscriptionValidationSuccess(this ILogger logger);
 
+    [LoggerMessage(
+        EventId = 11077,
+        Level = LogLevel.Information,
+        Message = "Processing {SubscriptionCount} Azure subscriptions for validation")]
+    public static partial void LogProcessingAzureSubscriptions(
+        this ILogger logger,
+        int subscriptionCount);
+
+    [LoggerMessage(
+        EventId = 11078,
+        Level = LogLevel.Information,
+        Message = "Azure subscription validation summary | Valid: {ValidCount} | Invalid: {InvalidCount} | Total: {TotalCount}")]
+    public static partial void LogAzureSubscriptionValidationSummary(
+        this ILogger logger,
+        int validCount,
+        int invalidCount,
+        int totalCount);
+
     #endregion
 
     // ============================================================
     // ResourceDependencyInformationValidator (EventIds 11200-11399)
     // ============================================================
 
-    #region Validate Method (11200-11219)
+    #region Validate Method Lifecycle (11200-11219)
 
     [LoggerMessage(
         EventId = 11200,
@@ -314,7 +481,7 @@ namespace DynamicAllowListingLib.Logging
     [LoggerMessage(
         EventId = 11205,
         Level = LogLevel.Error,
-        Message = "Exception occurred in validation: {ExceptionMessage}")]
+        Message = "Validation exception occurred: {ExceptionMessage}")]
     public static partial void LogValidationExceptionWithMessage(
         this ILogger logger,
         string exceptionMessage);
@@ -326,6 +493,72 @@ namespace DynamicAllowListingLib.Logging
     public static partial void LogInnerException(
         this ILogger logger,
         string innerExceptionMessage);
+
+    // NEW: Validation completion logs
+    [LoggerMessage(
+        EventId = 11207,
+        Level = LogLevel.Information,
+        Message = "Validation completed successfully | ResourceId: {ResourceId}")]
+    public static partial void LogValidationCompletedSuccess(
+        this ILogger logger,
+        string? resourceId);
+
+    [LoggerMessage(
+        EventId = 11208,
+        Level = LogLevel.Warning,
+        Message = "Validation completed with errors | ResourceId: {ResourceId} | ErrorCount: {ErrorCount}")]
+    public static partial void LogValidationCompletedWithErrors(
+        this ILogger logger,
+        string? resourceId,
+        int errorCount);
+
+    [LoggerMessage(
+        EventId = 11209,
+        Level = LogLevel.Debug,
+        Message = "Validation summary | ResourceId: {ResourceId} | TotalChecks: {TotalChecks} | ErrorCount: {ErrorCount} | Success: {Success}")]
+    public static partial void LogValidationSummary(
+        this ILogger logger,
+        string? resourceId,
+        int totalChecks,
+        int errorCount,
+        bool success);
+
+    #endregion
+
+    #region ValidateMainResourceId (11210-11219)
+
+    [LoggerMessage(
+        EventId = 11210,
+        Level = LogLevel.Warning,
+        Message = "Main resource ID is null or empty")]
+    public static partial void LogMainResourceIdNullOrEmpty(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = 11211,
+        Level = LogLevel.Warning,
+        Message = "Main resource ID format invalid | ResourceId: {ResourceId} | Error: {ErrorMessage}")]
+    public static partial void LogMainResourceIdInvalidFormat(
+        this ILogger logger,
+        string resourceId,
+        string errorMessage);
+
+    [LoggerMessage(
+        EventId = 11212,
+        Level = LogLevel.Information,
+        Message = "Main resource ID validated successfully | ResourceId: {ResourceId} | MatchedType: {MatchedResourceType}")]
+    public static partial void LogMainResourceIdValid(
+        this ILogger logger,
+        string resourceId,
+        string matchedResourceType);
+
+    [LoggerMessage(
+        EventId = 11213,
+        Level = LogLevel.Debug,
+        Message = "Checking resource ID against regex | ResourceId: {ResourceId} | Pattern: {PatternName}")]
+    public static partial void LogCheckingResourceIdPattern(
+        this ILogger logger,
+        string resourceId,
+        string patternName);
 
     #endregion
 
@@ -341,11 +574,44 @@ namespace DynamicAllowListingLib.Logging
 
     [LoggerMessage(
         EventId = 11221,
-        Level = LogLevel.Information,
+        Level = LogLevel.Debug,
         Message = "Validated NewDayInternalAndThirdPartyTag: {TagName}")]
     public static partial void LogValidatedNewDayServiceTag(
         this ILogger logger,
         string tagName);
+
+    // NEW: NewDay service tag validation lifecycle logs
+    [LoggerMessage(
+        EventId = 11222,
+        Level = LogLevel.Information,
+        Message = "NewDay service tag validation started | TagCount: {TagCount}")]
+    public static partial void LogNewDayServiceTagValidationStart(
+        this ILogger logger,
+        int tagCount);
+
+    [LoggerMessage(
+        EventId = 11223,
+        Level = LogLevel.Debug,
+        Message = "No NewDay service tags to validate")]
+    public static partial void LogNoNewDayServiceTagsToValidate(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = 11224,
+        Level = LogLevel.Information,
+        Message = "NewDay service tag validation completed | ValidCount: {ValidCount} | InvalidCount: {InvalidCount}")]
+    public static partial void LogNewDayServiceTagValidationComplete(
+        this ILogger logger,
+        int validCount,
+        int invalidCount);
+
+    [LoggerMessage(
+        EventId = 11225,
+        Level = LogLevel.Debug,
+        Message = "Collected NewDay service tags from SecurityRestrictions: {SecurityRestrictionsCount} | ScmSecurityRestrictions: {ScmSecurityRestrictionsCount}")]
+    public static partial void LogNewDayServiceTagsCollected(
+        this ILogger logger,
+        int securityRestrictionsCount,
+        int scmSecurityRestrictionsCount);
 
     #endregion
 
@@ -361,11 +627,45 @@ namespace DynamicAllowListingLib.Logging
 
     [LoggerMessage(
         EventId = 11241,
-        Level = LogLevel.Information,
+        Level = LogLevel.Debug,
         Message = "Validated AzureServiceTag: {TagName}")]
     public static partial void LogValidatedAzureServiceTag(
         this ILogger logger,
         string tagName);
+
+    // NEW: Azure service tag validation lifecycle logs
+    [LoggerMessage(
+        EventId = 11242,
+        Level = LogLevel.Information,
+        Message = "Azure service tag validation started | TagCount: {TagCount} | SubscriptionId: {SubscriptionId}")]
+    public static partial void LogAzureServiceTagValidationStart(
+        this ILogger logger,
+        int tagCount,
+        string? subscriptionId);
+
+    [LoggerMessage(
+        EventId = 11243,
+        Level = LogLevel.Debug,
+        Message = "No Azure service tags to validate")]
+    public static partial void LogNoAzureServiceTagsToValidate(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = 11244,
+        Level = LogLevel.Information,
+        Message = "Azure service tag validation completed | ValidCount: {ValidCount} | InvalidCount: {InvalidCount}")]
+    public static partial void LogAzureServiceTagValidationComplete(
+        this ILogger logger,
+        int validCount,
+        int invalidCount);
+
+    [LoggerMessage(
+        EventId = 11245,
+        Level = LogLevel.Debug,
+        Message = "Collected Azure service tags from SecurityRestrictions: {SecurityRestrictionsCount} | ScmSecurityRestrictions: {ScmSecurityRestrictionsCount}")]
+    public static partial void LogAzureServiceTagsCollected(
+        this ILogger logger,
+        int securityRestrictionsCount,
+        int scmSecurityRestrictionsCount);
 
     #endregion
 
@@ -407,6 +707,93 @@ namespace DynamicAllowListingLib.Logging
         Message = "Resource ID format validation completed successfully.")]
     public static partial void LogResourceIdFormatValidationSuccess(this ILogger logger);
 
+    // NEW: Resource ID format validation additional logs
+    [LoggerMessage(
+        EventId = 11265,
+        Level = LogLevel.Debug,
+        Message = "No inbound security restrictions defined")]
+    public static partial void LogNoInboundSecurityRestrictions(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = 11266,
+        Level = LogLevel.Information,
+        Message = "Validating inbound resource IDs | Count: {Count}")]
+    public static partial void LogValidatingInboundResourceIds(
+        this ILogger logger,
+        int count);
+
+    [LoggerMessage(
+        EventId = 11267,
+        Level = LogLevel.Information,
+        Message = "Inbound resource ID validation completed | ValidCount: {ValidCount} | InvalidCount: {InvalidCount}")]
+    public static partial void LogInboundResourceIdValidationComplete(
+        this ILogger logger,
+        int validCount,
+        int invalidCount);
+
+    [LoggerMessage(
+        EventId = 11268,
+        Level = LogLevel.Warning,
+        Message = "Outbound resources not allowed for this resource type | ResourceId: {ResourceId}")]
+    public static partial void LogOutboundResourcesNotAllowed(
+        this ILogger logger,
+        string resourceId);
+
+    [LoggerMessage(
+        EventId = 11269,
+        Level = LogLevel.Information,
+        Message = "Outbound resource ID validation completed | ValidCount: {ValidCount} | InvalidCount: {InvalidCount}")]
+    public static partial void LogOutboundResourceIdValidationComplete(
+        this ILogger logger,
+        int validCount,
+        int invalidCount);
+
+    [LoggerMessage(
+        EventId = 11270,
+        Level = LogLevel.Debug,
+        Message = "Validating inbound resource ID | ResourceId: {ResourceId}")]
+    public static partial void LogValidatingInboundResourceId(
+        this ILogger logger,
+        string resourceId);
+
+    [LoggerMessage(
+        EventId = 11271,
+        Level = LogLevel.Debug,
+        Message = "Inbound resource ID valid | ResourceId: {ResourceId} | MatchedPattern: {MatchedPattern}")]
+    public static partial void LogInboundResourceIdValid(
+        this ILogger logger,
+        string resourceId,
+        string matchedPattern);
+
+    [LoggerMessage(
+        EventId = 11272,
+        Level = LogLevel.Debug,
+        Message = "Validating outbound resource ID | ResourceId: {ResourceId}")]
+    public static partial void LogValidatingOutboundResourceId(
+        this ILogger logger,
+        string resourceId);
+
+    [LoggerMessage(
+        EventId = 11273,
+        Level = LogLevel.Debug,
+        Message = "Outbound resource ID valid | ResourceId: {ResourceId} | MatchedPattern: {MatchedPattern}")]
+    public static partial void LogOutboundResourceIdValid(
+        this ILogger logger,
+        string resourceId,
+        string matchedPattern);
+
+    [LoggerMessage(
+        EventId = 11274,
+        Level = LogLevel.Warning,
+        Message = "Null or empty resource ID found in inbound list")]
+    public static partial void LogNullOrEmptyInboundResourceId(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = 11275,
+        Level = LogLevel.Warning,
+        Message = "Null or empty resource ID found in outbound list")]
+    public static partial void LogNullOrEmptyOutboundResourceId(this ILogger logger);
+
     #endregion
 
     #region ValidateCrossSubscriptionAllowance (11280-11299)
@@ -435,6 +822,91 @@ namespace DynamicAllowListingLib.Logging
         Message = "Cross-subscription allowance validation passed.")]
     public static partial void LogCrossSubscriptionValidationPassed(this ILogger logger);
 
+    // NEW: Cross-subscription validation additional logs
+    [LoggerMessage(
+        EventId = 11283,
+        Level = LogLevel.Debug,
+        Message = "Request subscription ID is null or empty, skipping cross-subscription validation")]
+    public static partial void LogRequestSubscriptionIdNullOrEmpty(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = 11284,
+        Level = LogLevel.Debug,
+        Message = "No cross-subscription pool found for subscription | SubscriptionId: {SubscriptionId}")]
+    public static partial void LogCrossSubscriptionPoolNotFound(
+        this ILogger logger,
+        string subscriptionId);
+
+    [LoggerMessage(
+        EventId = 11285,
+        Level = LogLevel.Information,
+        Message = "Cross-subscription pool found | Environment: {Environment} | AllowedSubscriptionCount: {AllowedSubscriptionCount}")]
+    public static partial void LogCrossSubscriptionPoolFound(
+        this ILogger logger,
+        string environment,
+        int allowedSubscriptionCount);
+
+    [LoggerMessage(
+        EventId = 11286,
+        Level = LogLevel.Debug,
+        Message = "Validating inbound resources for cross-subscription | ResourceCount: {ResourceCount}")]
+    public static partial void LogValidatingInboundCrossSubscription(
+        this ILogger logger,
+        int resourceCount);
+
+    [LoggerMessage(
+        EventId = 11287,
+        Level = LogLevel.Debug,
+        Message = "Validating outbound resources for cross-subscription | ResourceCount: {ResourceCount}")]
+    public static partial void LogValidatingOutboundCrossSubscription(
+        this ILogger logger,
+        int resourceCount);
+
+    [LoggerMessage(
+        EventId = 11288,
+        Level = LogLevel.Debug,
+        Message = "Inbound resource subscription allowed | ResourceId: {ResourceId} | SubscriptionId: {SubscriptionId}")]
+    public static partial void LogInboundCrossSubscriptionAllowed(
+        this ILogger logger,
+        string resourceId,
+        string subscriptionId);
+
+    [LoggerMessage(
+        EventId = 11289,
+        Level = LogLevel.Debug,
+        Message = "Outbound resource subscription allowed | ResourceId: {ResourceId} | SubscriptionId: {SubscriptionId}")]
+    public static partial void LogOutboundCrossSubscriptionAllowed(
+        this ILogger logger,
+        string resourceId,
+        string subscriptionId);
+
+    [LoggerMessage(
+        EventId = 11290,
+        Level = LogLevel.Warning,
+        Message = "Inbound cross-subscription not allowed | ResourceId: {ResourceId} | ResourceSubscription: {ResourceSubscription}")]
+    public static partial void LogInboundCrossSubscriptionNotAllowed(
+        this ILogger logger,
+        string resourceId,
+        string resourceSubscription);
+
+    [LoggerMessage(
+        EventId = 11291,
+        Level = LogLevel.Warning,
+        Message = "Outbound cross-subscription not allowed | ResourceId: {ResourceId} | ResourceSubscription: {ResourceSubscription}")]
+    public static partial void LogOutboundCrossSubscriptionNotAllowed(
+        this ILogger logger,
+        string resourceId,
+        string resourceSubscription);
+
+    [LoggerMessage(
+        EventId = 11292,
+        Level = LogLevel.Information,
+        Message = "Cross-subscription validation completed | InboundErrorCount: {InboundErrorCount} | OutboundErrorCount: {OutboundErrorCount}")]
+    public static partial void LogCrossSubscriptionValidationComplete(
+        this ILogger logger,
+        int inboundErrorCount,
+        int outboundErrorCount);
+
     #endregion
 
     #region ValidateFormat Method (11300-11319)
@@ -461,11 +933,31 @@ namespace DynamicAllowListingLib.Logging
         this ILogger logger,
         string? subscriptionId);
 
+    // NEW: Format validation completion logs
+    [LoggerMessage(
+        EventId = 11303,
+        Level = LogLevel.Information,
+        Message = "Format validation completed successfully | ResourceId: {ResourceId}")]
+    public static partial void LogFormatValidationCompletedSuccess(
+        this ILogger logger,
+        string? resourceId);
+
+    [LoggerMessage(
+        EventId = 11304,
+        Level = LogLevel.Warning,
+        Message = "Format validation completed with errors | ResourceId: {ResourceId} | ErrorCount: {ErrorCount}")]
+    public static partial void LogFormatValidationCompletedWithErrors(
+        this ILogger logger,
+        string? resourceId,
+        int errorCount);
+
     #endregion
 
     // ============================================================
     // JSON Parsing Operations (EventIds 11520-11539)
     // ============================================================
+
+    #region JSON Parsing
 
     [LoggerMessage(
         EventId = 11520,
@@ -529,9 +1021,41 @@ namespace DynamicAllowListingLib.Logging
         Exception exception,
         string targetType);
 
+    #endregion
+
+    // ============================================================
+    // Validation Summary (EventIds 11540-11549)
+    // ============================================================
+
+    #region Validation Summary
+
+    [LoggerMessage(
+        EventId = 11540,
+        Level = LogLevel.Information,
+        Message = "Validation completed | ModelType: {ModelType} | Success: {Success} | ErrorCount: {ErrorCount} | WarningCount: {WarningCount} | DurationMs: {DurationMs}")]
+    public static partial void LogValidationCompleted(
+        this ILogger logger,
+        string modelType,
+        bool success,
+        int errorCount,
+        int warningCount,
+        long durationMs);
+
+    [LoggerMessage(
+        EventId = 11541,
+        Level = LogLevel.Debug,
+        Message = "Validation started | ModelType: {ModelType}")]
+    public static partial void LogValidationStarted(
+        this ILogger logger,
+        string modelType);
+
+    #endregion
+
     // ============================================================
     // AzureSubscriptionsPersistenceManager - Additional Logs (EventIds 10115-10119)
     // ============================================================
+
+    #region AzureSubscriptionsPersistenceManager
 
     [LoggerMessage(
         EventId = 10115,
@@ -578,9 +1102,13 @@ namespace DynamicAllowListingLib.Logging
         this ILogger logger,
         int itemCount);
 
+    #endregion
+
     // ============================================================
     // ServiceTagsPersistenceManager - Additional Logs (EventIds 10170-10179)
     // ============================================================
+
+    #region ServiceTagsPersistenceManager
 
     [LoggerMessage(
         EventId = 10170,
@@ -649,9 +1177,13 @@ namespace DynamicAllowListingLib.Logging
         this ILogger logger,
         int itemCount);
 
+    #endregion
+
     // ============================================================
     // InternalAndThirdPartyServiceTagPersistenceManager - Additional Logs (EventIds 10210-10219)
     // ============================================================
+
+    #region InternalAndThirdPartyServiceTagPersistenceManager
 
     [LoggerMessage(
         EventId = 10210,
@@ -689,34 +1221,10 @@ namespace DynamicAllowListingLib.Logging
         EventId = 10214,
         Level = LogLevel.Debug,
         Message = "Service Tags update completed successfully | Count: {Count}")]
-    public static partial void LogServiceTagsUpdateCompleted(
+    public static partial void LogServiceTagsUpdateCompletedCount(
         this ILogger logger,
         int count);
 
-
-    // ============================================================
-    // Validation Summary (EventIds 11540-11549)
-    // ============================================================
-
-    [LoggerMessage(
-        EventId = 11540,
-        Level = LogLevel.Information,
-        Message = "Validation completed | ModelType: {ModelType} | Success: {Success} | ErrorCount: {ErrorCount} | WarningCount: {WarningCount} | DurationMs: {DurationMs}")]
-    public static partial void LogValidationCompleted(
-        this ILogger logger,
-        string modelType,
-        bool success,
-        int errorCount,
-        int warningCount,
-        long durationMs);
-
-    [LoggerMessage(
-        EventId = 11541,
-        Level = LogLevel.Debug,
-        Message = "Validation started | ModelType: {ModelType}")]
-    public static partial void LogValidationStarted(
-        this ILogger logger,
-        string modelType);
-
+    #endregion
   }
 }

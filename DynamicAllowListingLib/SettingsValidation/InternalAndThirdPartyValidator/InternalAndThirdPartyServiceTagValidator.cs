@@ -3,7 +3,6 @@ using DynamicAllowListingLib.ServiceTagManagers.Model;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
@@ -24,113 +23,254 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
     public ResultObject Validate(InternalAndThirdPartyServiceTagSetting settings)
     {
       var result = new ResultObject();
-      var stopwatch = Stopwatch.StartNew();
 
       // Log validation start
       _logger.LogValidationStarted(nameof(InternalAndThirdPartyServiceTagSetting));
 
       try
       {
-        //run rules
+        // Rule 1: Validate Azure Subscription Parameters
         _logger.LogValidatingAzureSubscriptionParameters();
-        result.Errors.AddRange(ValidateAzureSubscriptionParameters(settings));
+        var subscriptionErrors = ValidateAzureSubscriptionParameters(settings);
+        result.Errors.AddRange(subscriptionErrors);
+        _logger.LogValidationStageCompleted("AzureSubscriptionParameters", subscriptionErrors.Count(), 0);
 
+        // Rule 2: Validate Service Tag IP Addresses
         _logger.LogValidatingServiceTagIPAddresses();
-        result.Errors.AddRange(ValidateServiceTagIPAddresses(settings));
+        var ipAddressErrors = ValidateServiceTagIPAddresses(settings);
+        result.Errors.AddRange(ipAddressErrors);
+        _logger.LogValidationStageCompleted("ServiceTagIPAddresses", ipAddressErrors.Count(), 0);
 
+        // Rule 3: Validate Allowed Subscription Tags
         _logger.LogValidatingAllowedSubscriptionTags();
-        result.Errors.AddRange(ValidateAllowedSubscriptionTags(settings));
+        var allowedSubscriptionErrors = ValidateAllowedSubscriptionTags(settings);
+        result.Errors.AddRange(allowedSubscriptionErrors);
+        _logger.LogValidationStageCompleted("AllowedSubscriptionTags", allowedSubscriptionErrors.Count(), 0);
 
+        // Rule 4: Validate Overlapping IP Addresses (Warnings only)
         _logger.LogValidatingOverlappingIPAddresses();
-        result.Warnings.AddRange(ValidateAddressRangeOverlapping(settings));
+        var overlapWarnings = ValidateAddressRangeOverlapping(settings);
+        result.Warnings.AddRange(overlapWarnings);
+        _logger.LogValidationStageCompleted("AddressRangeOverlapping", 0, overlapWarnings.Count());
       }
       catch (Exception ex)
       {
-        _logger.LogValidationException(ex);
+        _logger.LogValidationException(ex, nameof(Validate));
+        result.Errors.Add($"Unexpected exception during validation: {ex.Message}");
       }
-      finally
-      {
-        stopwatch.Stop();
 
-        // Log validation summary
-        _logger.LogValidationCompleted(
-            nameof(InternalAndThirdPartyServiceTagSetting),
-            result.Success,
-            result.Errors.Count,
-            result.Warnings.Count,
-            stopwatch.ElapsedMilliseconds);
-      }
+      // Log validation summary
+      _logger.LogValidationCompleted(
+          nameof(InternalAndThirdPartyServiceTagSetting),
+          result.Success,
+          result.Errors.Count,
+          result.Warnings.Count,
+          0);
 
       return result;
     }
 
-    public IEnumerable<string> ValidateAddressRangeOverlapping(InternalAndThirdPartyServiceTagSetting settings)
+    public IEnumerable<string> ValidateAzureSubscriptionParameters(InternalAndThirdPartyServiceTagSetting settings)
     {
-      //Warnings list to store overlapping address issues
-      List<string> warnings = new List<string>();
-      // List of IP address scopes to track processed ranges
-      List<IpAddressScope> addressPairs = new List<IpAddressScope>();
+      List<string> errors = new List<string>();
+      const int defaultSubscriptionCount = 6;
+      int validCount = 0;
+      int invalidCount = 0;
+
+      try
+      {
+        if (settings?.AzureSubscriptions == null || !settings.AzureSubscriptions.Any())
+        {
+          var errorMessage = "No AzureSubscriptions defined in the settings.";
+          _logger.LogNoAzureSubscriptionsDefined();
+          errors.Add(errorMessage);
+          return errors;
+        }
+
+        // Log how many subscriptions we're processing
+        _logger.LogProcessingAzureSubscriptions(settings.AzureSubscriptions.Count);
+
+        // Validate minimum subscription count and required fields
+        var validSubscriptionCount = settings.AzureSubscriptions.Count(x => !string.IsNullOrEmpty(x.Id) && !string.IsNullOrEmpty(x.Name));
+        if (validSubscriptionCount < defaultSubscriptionCount)
+        {
+          _logger.LogAzureSubscriptionValidationFailed(defaultSubscriptionCount);
+          errors.Add($"AzureSubscription validation failed. A minimum of {defaultSubscriptionCount} subscriptions with valid 'Id' and 'Name' is required.");
+        }
+
+        foreach (var subscription in settings.AzureSubscriptions)
+        {
+          // Validate that both Id and Name are provided
+          if (string.IsNullOrEmpty(subscription.Id) || string.IsNullOrEmpty(subscription.Name))
+          {
+            _logger.LogMissingIdOrName(subscription.Name ?? "Unknown");
+            errors.Add($"AzureSubscription has missing 'Id' or 'Name'. SubscriptionName: {subscription.Name}");
+            invalidCount++;
+            continue;
+          }
+
+          // Validate that the Id is a valid GUID
+          if (!Guid.TryParse(subscription.Id, out _))
+          {
+            _logger.LogInvalidSubscriptionId(subscription.Name);
+            errors.Add($"Invalid 'AzureSubscription.Id' value. AzureSubscription.Id must be a valid GUID. AzureSubscription.Name: {subscription.Name}");
+            invalidCount++;
+          }
+          else
+          {
+            _logger.LogValidSubscriptionId(subscription.Id, subscription.Name);
+            validCount++;
+          }
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogValidationException(ex, nameof(ValidateAzureSubscriptionParameters));
+        errors.Add($"Exception during Azure subscription validation: {ex.Message}");
+      }
+
+      // Log validation summary
+      _logger.LogAzureSubscriptionValidationSummary(validCount, invalidCount, settings?.AzureSubscriptions?.Count ?? 0);
+
+      // Log the outcome of the validation
+      if (errors.Any())
+      {
+        _logger.LogAzureSubscriptionValidationWithErrors(errors.Count);
+      }
+      else
+      {
+        _logger.LogAzureSubscriptionValidationSuccess();
+      }
+
+      return errors;
+    }
+
+    public IEnumerable<string> ValidateServiceTagIPAddresses(InternalAndThirdPartyServiceTagSetting settings)
+    {
+      List<string> errors = new List<string>();
+      int validAddresses = 0;
+      int invalidAddresses = 0;
+      int validSubnets = 0;
+      int invalidSubnets = 0;
+      int tagsProcessed = 0;
+
       try
       {
         if (settings?.ServiceTags == null || !settings.ServiceTags.Any())
         {
-          _logger.LogNoServiceTagsInSettings();
-          warnings.Add("No ServiceTags provided in the settings.");
-          return warnings;
+          var errorMessage = "No ServiceTags provided in the settings.";
+          _logger.LogNoServiceTagsProvidedForIPValidation();
+          errors.Add(errorMessage);
+          return errors;
         }
 
         foreach (var tag in settings.ServiceTags)
         {
-          if (tag?.AddressPrefixes == null)
+          tagsProcessed++;
+
+          // Log processing of each service tag
+          _logger.LogProcessingServiceTagForIPValidation(
+              tag.Name,
+              tag.AddressPrefixes?.Count ?? 0,
+              tag.SubnetIds?.Count ?? 0);
+
+          // Validate Service Tag Name
+          if (string.IsNullOrEmpty(tag.Name))
           {
-            _logger.LogServiceTagNoAddressPrefixes(tag?.Name ?? "Unknown");
-            warnings.Add($"ServiceTag '{tag?.Name}' has no AddressPrefixes defined.");
-            continue;
+            string errorMessage = $"Null/Empty 'ServiceTags.Name' value.";
+            _logger.LogNullOrEmptyServiceTagName();
+            errors.Add(errorMessage);
           }
-          foreach (var addr in tag.AddressPrefixes)
+
+          // Validate Address Prefixes
+          if (tag.AddressPrefixes == null || !tag.AddressPrefixes.Any())
           {
-            if (addr != null && IsCIDRAddressValid(addr))
+            _logger.LogNoAddressPrefixesDefined(tag.Name);
+          }
+          else
+          {
+            foreach (var address in tag.AddressPrefixes)
             {
-              // Check for overlapping IP address ranges
-              if (addressPairs.Any(x => x.IpAddress != null && AreIPRangesOverlap(x.IpAddress, addr) && x.AllowedSubscriptions.Intersect(tag.AllowedSubscriptions.Select(x => x.SubscriptionName)).Any()))
+              if (string.IsNullOrEmpty(address))
               {
-                var warningMessage = $"Overlapping 'ServiceTags.AddressPrefixes' detected. " +
-                                             $"ServiceTags.Name: {tag.Name}, AddressPrefix: {addr}";
-                warnings.Add(warningMessage);
-                _logger.LogOverlappingAddressPrefixDetected(tag.Name ?? "Unknown", addr);
+                _logger.LogInvalidAddressPrefixValue(tag.Name, "(null or empty)");
+                errors.Add($"Null/Empty 'ServiceTags.AddressPrefixes' value. ServiceTags.Name: {tag.Name}");
+                invalidAddresses++;
+              }
+              else if (!IsCIDRAddressValid(address))
+              {
+                string errorMessage = $"Invalid 'ServiceTags.AddressPrefixes' value. ServiceTags.Name: {tag.Name}, IPAddress: {address}";
+                _logger.LogInvalidAddressPrefixValue(tag.Name, address);
+                errors.Add(errorMessage);
+                invalidAddresses++;
               }
               else
               {
-                // Add to the list of address pairs
-                addressPairs.Add(new IpAddressScope { IpAddress = addr, AllowedSubscriptions = tag.AllowedSubscriptions.Select(x => x.SubscriptionName ?? "").ToList() });
+                _logger.LogValidAddressPrefix(tag.Name, address);
+                validAddresses++;
               }
             }
-            else
+          }
+
+          // Validate Subnet IDs
+          if (tag.SubnetIds == null || !tag.SubnetIds.Any())
+          {
+            _logger.LogNoSubnetIdsDefined(tag.Name);
+          }
+          else
+          {
+            foreach (var subnetId in tag.SubnetIds)
             {
-              _logger.LogInvalidAddressPrefix(addr, tag.Name ?? "Unknown");
+              if (string.IsNullOrEmpty(subnetId))
+              {
+                _logger.LogInvalidSubnetIdValue(tag.Name, "(null or empty)");
+                errors.Add($"Null/Empty 'ServiceTags.Subnet' value. ServiceTags.Name: {tag.Name}");
+                invalidSubnets++;
+              }
+              else if (!IsValidSubnetId(subnetId))
+              {
+                string errorMessage = $"Invalid 'ServiceTags.Subnet' value. ServiceTags.Name: {tag.Name}, SubnetId: {subnetId}";
+                _logger.LogInvalidSubnetIdValue(tag.Name, subnetId);
+                errors.Add(errorMessage);
+                invalidSubnets++;
+              }
+              else
+              {
+                _logger.LogValidSubnetIdProcessed(tag.Name, subnetId);
+                validSubnets++;
+              }
             }
           }
         }
       }
       catch (Exception ex)
       {
-        _logger.LogValidationException(ex);
+        _logger.LogValidationException(ex, nameof(ValidateServiceTagIPAddresses));
+        errors.Add($"Exception during IP address validation: {ex.Message}");
       }
+
+      // Log validation summary
+      _logger.LogIPValidationSummary(tagsProcessed, validAddresses, invalidAddresses, validSubnets, invalidSubnets);
+
       // Log the outcome of the validation
-      if (warnings.Any())
+      if (errors.Any())
       {
-        _logger.LogAddressRangeValidationWithWarnings(warnings.Count);
+        _logger.LogIPAddressValidationWithErrors(errors.Count);
       }
       else
       {
-        _logger.LogAddressRangeValidationSuccess();
+        _logger.LogIPAddressValidationSuccess();
       }
-      return warnings;
+
+      return errors;
     }
 
     public IEnumerable<string> ValidateAllowedSubscriptionTags(InternalAndThirdPartyServiceTagSetting settings)
     {
       List<string> errors = new List<string>();
+      int validReferences = 0;
+      int invalidReferences = 0;
+
       try
       {
         if (settings?.AzureSubscriptions == null || !settings.AzureSubscriptions.Any())
@@ -152,8 +292,12 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
           errors.Add(errorMessage);
           return errors;
         }
+
         foreach (var tag in settings.ServiceTags)
         {
+          // Log processing of each service tag
+          _logger.LogValidatingServiceTagSubscriptions(tag.Name, tag.AllowedSubscriptions?.Count ?? 0);
+
           // Validate allowed subscriptions for each service tag
           if (tag.AllowedSubscriptions == null || tag.AllowedSubscriptions.Count <= 0)
           {
@@ -162,6 +306,7 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
             errors.Add(errorMessage);
             continue;
           }
+
           foreach (var subscriptionTag in tag.AllowedSubscriptions)
           {
             if (!subscriptionList.Contains(subscriptionTag.SubscriptionName))
@@ -169,14 +314,25 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
               string errorMessage = $"Invalid 'ServiceTags.AllowedSubscriptions'. SubscriptionName: {subscriptionTag.SubscriptionName} Tag: {tag.Name}";
               _logger.LogInvalidAllowedSubscription(subscriptionTag.SubscriptionName, tag.Name);
               errors.Add(errorMessage);
+              invalidReferences++;
+            }
+            else
+            {
+              _logger.LogValidAllowedSubscription(subscriptionTag.SubscriptionName, tag.Name);
+              validReferences++;
             }
           }
         }
       }
       catch (Exception ex)
       {
-        _logger.LogValidationException(ex);
+        _logger.LogValidationException(ex, nameof(ValidateAllowedSubscriptionTags));
+        errors.Add($"Exception during allowed subscription validation: {ex.Message}");
       }
+
+      // Log validation summary
+      _logger.LogAllowedSubscriptionValidationSummary(validReferences, invalidReferences);
+
       // Log the outcome of the validation
       if (errors.Any())
       {
@@ -186,177 +342,162 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
       {
         _logger.LogAllowedSubscriptionValidationSuccess();
       }
+
       return errors;
     }
 
-    public IEnumerable<string> ValidateServiceTagIPAddresses(InternalAndThirdPartyServiceTagSetting settings)
+    public IEnumerable<string> ValidateAddressRangeOverlapping(InternalAndThirdPartyServiceTagSetting settings)
     {
-      List<string> errors = new List<string>();
+      // Warnings list to store overlapping address issues
+      List<string> warnings = new List<string>();
+      // List of IP address scopes to track processed ranges
+      List<IpAddressScope> addressPairs = new List<IpAddressScope>();
+      int totalAddressesProcessed = 0;
+      int overlapsFound = 0;
+      int tagsProcessed = 0;
+
       try
       {
         if (settings?.ServiceTags == null || !settings.ServiceTags.Any())
         {
-          var errorMessage = "No ServiceTags provided in the settings.";
-          _logger.LogNoServiceTagsProvidedForIPValidation();
-          errors.Add(errorMessage);
-          return errors;
+          _logger.LogNoServiceTagsInSettings();
+          warnings.Add("No ServiceTags provided in the settings.");
+          return warnings;
         }
+
         foreach (var tag in settings.ServiceTags)
         {
-          // Validate Service Tag Name
-          if (string.IsNullOrEmpty(tag.Name))
-          {
-            string errorMessage = $"Null/Empty 'ServiceTags.Name' value.";
-            _logger.LogNullOrEmptyServiceTagName();
-            errors.Add(errorMessage);
-          }
-          // Validate Address Prefixes
-          if (tag.AddressPrefixes == null || !tag.AddressPrefixes.Any())
-          {
-            _logger.LogNoAddressPrefixesDefined(tag.Name);
-          }
-          else
-          {
-            foreach (var address in tag.AddressPrefixes)
-            {
-              if (address != null && !IsCIDRAddressValid(address))
-              {
-                string errorMessage = $"Invalid 'ServiceTags.AddressPrefixes' value. ServiceTags.Name: {tag.Name}, IPAddress: {address}";
-                _logger.LogInvalidAddressPrefixValue(tag.Name, address);
-                errors.Add(errorMessage);
-              }
-            }
-          }
-          // Validate Subnet IDs
-          if (tag.SubnetIds == null || !tag.SubnetIds.Any())
-          {
-            _logger.LogNoSubnetIdsDefined(tag.Name);
-          }
-          else
-          {
-            foreach (var subnetId in tag.SubnetIds)
-            {
-              if (subnetId != null && !IsValidSubnetId(subnetId))
-              {
-                string errorMessage = $"Invalid 'ServiceTags.Subnet' value. ServiceTags.Name: {tag.Name}, SubnetId: {subnetId}";
-                _logger.LogInvalidSubnetIdValue(tag.Name, subnetId);
-                errors.Add(errorMessage);
-              }
-            }
-          }
-        }
-      }
-      catch (Exception ex)
-      {
-        _logger.LogValidationException(ex);
-      }
-      // Log the outcome of the validation
-      if (errors.Any())
-      {
-        _logger.LogIPAddressValidationWithErrors(errors.Count);
-      }
-      else
-      {
-        _logger.LogIPAddressValidationSuccess();
-      }
-      return errors;
-    }
+          tagsProcessed++;
 
-    public IEnumerable<string> ValidateAzureSubscriptionParameters(InternalAndThirdPartyServiceTagSetting settings)
-    {
-      List<string> errors = new List<string>();
-      const int defaultSubscriptionCount = 6;
-      try
-      {
-        if (settings?.AzureSubscriptions == null || !settings.AzureSubscriptions.Any())
-        {
-          var errorMessage = "No AzureSubscriptions defined in the settings.";
-          _logger.LogNoAzureSubscriptionsDefined();
-          errors.Add(errorMessage);
-          return errors;
-        }
-
-        // Validate minimum subscription count and required fields
-        var validSubscriptionCount = settings.AzureSubscriptions.Count(x => !string.IsNullOrEmpty(x.Id) && !string.IsNullOrEmpty(x.Name));
-        if (validSubscriptionCount < defaultSubscriptionCount)
-        {
-          _logger.LogAzureSubscriptionValidationFailed(defaultSubscriptionCount);
-          errors.Add($"AzureSubscription validation failed. A minimum of {defaultSubscriptionCount} subscriptions with valid 'Id' and 'Name' is required.");
-        }
-
-        foreach (var subscription in settings.AzureSubscriptions)
-        {
-          // Validate that both Id and Name are provided
-          if (string.IsNullOrEmpty(subscription.Id) || string.IsNullOrEmpty(subscription.Name))
+          if (tag?.AddressPrefixes == null)
           {
-            _logger.LogMissingIdOrName(subscription.Name ?? "Unknown");
-            errors.Add($"AzureSubscription has missing 'Id' or 'Name'. SubscriptionName: {subscription.Name}");
+            _logger.LogServiceTagNoAddressPrefixes(tag?.Name ?? "Unknown");
+            warnings.Add($"ServiceTag '{tag?.Name}' has no AddressPrefixes defined.");
             continue;
           }
 
-          // Validate that the Id is a valid GUID
-          if (!Guid.TryParse(subscription.Id, out _))
+          // Log processing of each service tag for overlap validation
+          _logger.LogProcessingServiceTagForOverlap(tag.Name ?? "Unknown", tag.AddressPrefixes.Count);
+
+          foreach (var addr in tag.AddressPrefixes)
           {
-            _logger.LogInvalidSubscriptionId(subscription.Name);
-            errors.Add($"Invalid 'AzureSubscription.Id' value. AzureSubscription.Id must be a valid GUID. AzureSubscription.Name: {subscription.Name}");
-          }
-          else
-          {
-            _logger.LogValidSubscriptionId(subscription.Id, subscription.Name);
+            if (addr != null && IsCIDRAddressValid(addr))
+            {
+              totalAddressesProcessed++;
+
+              // Check for overlapping IP address ranges within the same subscription scope
+              var hasOverlap = addressPairs.Any(x =>
+                  x.IpAddress != null &&
+                  AreIPRangesOverlap(x.IpAddress, addr) &&
+                  x.AllowedSubscriptions.Intersect(tag.AllowedSubscriptions.Select(s => s.SubscriptionName)).Any());
+
+              if (hasOverlap)
+              {
+                var warningMessage = $"Overlapping 'ServiceTags.AddressPrefixes' detected. " +
+                                     $"ServiceTags.Name: {tag.Name}, AddressPrefix: {addr}";
+                warnings.Add(warningMessage);
+                _logger.LogOverlappingAddressPrefixDetected(tag.Name ?? "Unknown", addr);
+                overlapsFound++;
+              }
+              else
+              {
+                // Add to the list of address pairs for future overlap checks
+                addressPairs.Add(new IpAddressScope
+                {
+                  IpAddress = addr,
+                  AllowedSubscriptions = tag.AllowedSubscriptions.Select(x => x.SubscriptionName ?? "").ToList()
+                });
+                _logger.LogAddressPrefixTracked(tag.Name ?? "Unknown", addr);
+              }
+            }
+            else
+            {
+              _logger.LogInvalidAddressPrefix(addr, tag.Name ?? "Unknown");
+            }
           }
         }
       }
       catch (Exception ex)
       {
-        _logger.LogValidationException(ex);
+        _logger.LogValidationException(ex, nameof(ValidateAddressRangeOverlapping));
+        warnings.Add($"Exception during address range overlap validation: {ex.Message}");
       }
+
+      // Log overlap validation summary
+      _logger.LogAddressOverlapSummary(totalAddressesProcessed, overlapsFound, tagsProcessed);
+
       // Log the outcome of the validation
-      if (errors.Any())
+      if (warnings.Any())
       {
-        _logger.LogAzureSubscriptionValidationWithErrors(errors.Count);
+        _logger.LogAddressRangeValidationWithWarnings(warnings.Count);
       }
       else
       {
-        _logger.LogAzureSubscriptionValidationSuccess();
+        _logger.LogAddressRangeValidationSuccess();
       }
-      return errors;
+
+      return warnings;
     }
 
     public bool AreIPRangesOverlap(string ipRange1, string ipRange2)
     {
       if (string.IsNullOrEmpty(ipRange1) || string.IsNullOrEmpty(ipRange2))
       {
+        _logger.LogIPRangeOverlapNullInput(ipRange1, ipRange2);
         throw new ArgumentNullException("IP ranges cannot be null or empty.");
       }
+
       try
       {
         // Parse the first IP range
         if (!IPNetwork2.TryParse(ipRange1, out var ipNetwork1))
         {
+          _logger.LogIPRangeOverlapInvalidCIDR(ipRange1);
           throw new FormatException($"Invalid CIDR format for IP range: {ipRange1}");
         }
+
         // Parse the second IP range
         if (!IPNetwork2.TryParse(ipRange2, out var ipNetwork2))
         {
+          _logger.LogIPRangeOverlapInvalidCIDR(ipRange2);
           throw new FormatException($"Invalid CIDR format for IP range: {ipRange2}");
         }
+
         // Check for overlap between the two IP ranges
-        return ipNetwork1.Overlap(ipNetwork2);
+        var overlaps = ipNetwork1.Overlap(ipNetwork2);
+        _logger.LogIPRangeOverlapResult(ipRange1, ipRange2, overlaps);
+
+        return overlaps;
       }
-      catch (Exception)
+      catch (FormatException)
       {
-        throw; // Re-throw the exception after logging for further handling
+        throw; // Re-throw the exception after logging
+      }
+      catch (Exception ex)
+      {
+        _logger.LogValidationException(ex, nameof(AreIPRangesOverlap));
+        throw;
       }
     }
 
     public bool IsCIDRAddressValid(string addr)
     {
+      if (string.IsNullOrEmpty(addr))
+      {
+        return false;
+      }
+
       Match m = Regex.Match(addr, _cidrPattern, RegexOptions.IgnoreCase);
       return m.Success;
     }
 
     public bool IsValidSubnetId(string subnetId)
     {
+      if (string.IsNullOrEmpty(subnetId))
+      {
+        return false;
+      }
+
       return Regex.IsMatch(subnetId, Constants.VNetSubnetIdRegex);
     }
 
