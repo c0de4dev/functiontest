@@ -5,6 +5,7 @@ using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -28,6 +29,17 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
 
     public async Task UpdateDatabaseStateTo(List<AzureSubscription> itemsToUpdateWith)
     {
+      var stopwatch = Stopwatch.StartNew();
+      int deletedCount = 0;
+      int upsertedCount = 0;
+
+      // Gap 5a.1 fix: Log null/empty input check
+      if (itemsToUpdateWith == null || !itemsToUpdateWith.Any())
+      {
+        _logger.LogInputListNullOrEmpty(_container.Id);
+        return;
+      }
+
       try
       {
         _logger.LogGettingItemsFromContainer(_container.Id);
@@ -40,6 +52,13 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
         _logger.LogItemsToDelete(itemsToDelete.Count);
 
         var itemsToAddOrUpdate = itemsToUpdateWith;
+
+        // Gap 5a.2 fix: Log items to add/update count
+        _logger.LogItemsToAddOrUpdate(itemsToAddOrUpdate.Count);
+
+        // Log deletion phase start
+        _logger.LogStartingDeletionPhase(itemsToDelete.Count);
+
         // Perform deletions
         foreach (var item in itemsToDelete)
         {
@@ -47,13 +66,20 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
           {
             await _container.DeleteItemAsync<AzureSubscription>(item.Id, new PartitionKey(AzureSubscriptionsPartitionKey));
             _logger.LogItemDeleted(item.Id ?? "Unknown");
+            deletedCount++;
           }
           catch (CosmosException cex) when (cex.StatusCode == System.Net.HttpStatusCode.NotFound)
           {
             // Handle scenario where the item to delete doesn't exist in the database
             _logger.LogItemNotFoundDuringDeletion(item.Id ?? "Unknown");
           }
+          catch (Exception ex)
+          {
+            // Gap 5a.4 fix: Log generic delete exception
+            _logger.LogDeleteItemFailed(ex, item.Id ?? "Unknown", _container.Id);
+          }
         }
+
         // Perform inserts/updates
         foreach (var item in itemsToAddOrUpdate)
         {
@@ -61,6 +87,7 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
           {
             await _container.UpsertItemAsync(item, new PartitionKey(AzureSubscriptionsPartitionKey));
             _logger.LogItemUpserted(item.Id ?? "Unknown");
+            upsertedCount++;
           }
           catch (Exception ex)
           {
@@ -79,6 +106,16 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
         // Handle unexpected exceptions
         _logger.LogUnexpectedErrorDuringUpdate(ex);
         throw; // Rethrow to ensure the caller is aware of the failure
+      }
+      finally
+      {
+        stopwatch.Stop();
+        // Gap 5a.3 fix: Log completion summary with counts and duration
+        _logger.LogUpdateDatabaseStateCompleted(
+            _container.Id,
+            deletedCount,
+            upsertedCount,
+            stopwatch.ElapsedMilliseconds);
       }
     }
 

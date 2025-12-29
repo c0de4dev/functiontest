@@ -11,6 +11,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -45,6 +46,7 @@ namespace AllowListingAzureFunction
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequest req)
     {
       var operationId = Guid.NewGuid().ToString();
+      var stopwatch = Stopwatch.StartNew();
 
       // *** CORRELATION FIX: Set correlation context for HTTP trigger ***
       CorrelationContext.SetCorrelationId(operationId);
@@ -72,9 +74,9 @@ namespace AllowListingAzureFunction
 
         _logger.LogRequestBodyReceived(operationId, requestBody.Length);
 
-        // Parse JSON
+        // Parse JSON - Gap 2.x fix: Pass logger to enable JSON parsing logging
         _logger.LogParsingRequestJson(operationId);
-        var parseResult = requestBody.TryParseJson(out InternalAndThirdPartyServiceTagSetting model);
+        var parseResult = requestBody.TryParseJson(out InternalAndThirdPartyServiceTagSetting model, _logger);
 
         if (!parseResult.Success)
         {
@@ -92,6 +94,12 @@ namespace AllowListingAzureFunction
 
         _logger.LogJsonParsedSuccessfully(operationId, "InternalAndThirdPartyServiceTagSetting");
 
+        // Gap 1.2 fix: Log input summary after successful parsing
+        _logger.LogInputSummary(
+            operationId,
+            model.AzureSubscriptions?.Count ?? 0,
+            model.ServiceTags?.Count ?? 0);
+
         // Validate model
         _logger.LogValidatingModel(operationId);
         var validationResult = _internalAndThirdPartyServiceTagValidator.Validate(model);
@@ -106,13 +114,30 @@ namespace AllowListingAzureFunction
         _logger.LogModelValidationSucceeded(operationId, "InternalAndThirdPartyServiceTagSetting");
 
         // Update database
+        var dbUpdateStopwatch = Stopwatch.StartNew();
         _logger.LogDatabaseUpdateStarted("ServiceTags", operationId);
         await _internalAndThirdPartyServiceTagPersistenceManager.UpdateDatabaseStateTo(model);
+        dbUpdateStopwatch.Stop();
         _logger.LogDatabaseUpdateCompleted("ServiceTags", operationId);
+
+        // Log database update summary
+        _logger.LogDatabaseUpdateSummary(
+            operationId,
+            model.AzureSubscriptions?.Count ?? 0,
+            model.ServiceTags?.Count ?? 0,
+            dbUpdateStopwatch.ElapsedMilliseconds);
+
+        stopwatch.Stop();
+
+        // Gap 1.1 fix: Log function completed successfully
+        _logger.LogHttpFunctionCompletedSuccessfully(FunctionName, operationId, 200, stopwatch.ElapsedMilliseconds);
+
+        operation.SetSuccess();
         return new OkObjectResult(new ResultObject());
       }
       catch (Exception ex)
       {
+        stopwatch.Stop();
         _logger.LogHttpFunctionFailed(ex, FunctionName, operationId);
         operation.SetFailed(ex.Message);
         _telemetry.TrackException(ex, new Dictionary<string, string>

@@ -193,7 +193,7 @@ namespace DynamicAllowListingLib.Models.AzureResources
     private async Task DisablePublicAccess(IRestHelper restHelper)
     {
       if (this.Properties.PublicNetworkAccess == "Enabled")
-        return; 
+        return;
 
       var vnetUrl = $"https://management.azure.com{Id}?api-version=2021-11-01";
       var requestModel = new SqlServerRequest(Location!);
@@ -249,7 +249,7 @@ namespace DynamicAllowListingLib.Models.AzureResources
             resultObject.Errors.Add($"IP Rule can not be added to the SQL Firewall! Error Message: {ex.Message}");
             throw;
           }
-        }        
+        }
       }
       logger.LogInformation($"{addedFwRules.Count} Firewall rules added. Rules:{string.Join("," + Environment.NewLine, addedFwRules)}");
     }
@@ -270,12 +270,10 @@ namespace DynamicAllowListingLib.Models.AzureResources
 
       string firewallurl = $"https://management.azure.com{Id}/firewallRules?api-version=2021-11-01";
       string? firewallResponse = await restHelper.DoGET(firewallurl);
-      SqlServerFirewallRulesResponse? existingFirewallRules = null;
-      if (!string.IsNullOrEmpty(firewallResponse))
-      {
-        existingFirewallRules = JsonConvert.DeserializeObject<SqlServerFirewallRulesResponse>(firewallResponse);
-      }
-      
+      var existingFirewallRules = string.IsNullOrEmpty(firewallResponse)
+        ? null
+        : JsonConvert.DeserializeObject<SqlServerFirewallRulesResponse>(firewallResponse);
+
       // Validate firewall rules existence
       if (existingFirewallRules?.Value == null)
       {
@@ -288,13 +286,14 @@ namespace DynamicAllowListingLib.Models.AzureResources
 
       string vneturl = $"https://management.azure.com{Id}/virtualNetworkRules?api-version=2021-11-01";
       string? vnetResponse = await restHelper.DoGET(vneturl);
-      SqlServerVNetRulesResponse? existingVNetRules = null;
-      if (!string.IsNullOrEmpty(vnetResponse))
+      if (string.IsNullOrEmpty(vnetResponse))
       {
-        existingVNetRules = JsonConvert.DeserializeObject<SqlServerVNetRulesResponse>(vnetResponse);
+        logger.LogError("Received empty or null response for VNET Rules for resource");
       }
+      var existingVNetRules = string.IsNullOrEmpty(vnetResponse)
+        ? null
+        : JsonConvert.DeserializeObject<SqlServerVNetRulesResponse>(vnetResponse);
 
-      // Validate virtual network rules existence
       // Validate virtual network rules existence
       if (existingVNetRules?.Value == null)
       {
@@ -361,7 +360,7 @@ namespace DynamicAllowListingLib.Models.AzureResources
             RuleName = rule.Name,
             StartIPAddress = range.Item1,
             EndIPAddress = range.Item2
-          });         
+          });
         }
         if (rule.VnetSubnetResourceId != null)
         {
@@ -370,7 +369,7 @@ namespace DynamicAllowListingLib.Models.AzureResources
       }
       IPRules = JsonConvert.SerializeObject(jsonFormattedRules, Formatting.Indented);
       SubnetIds = SubnetIds.TrimEnd(',');
-       
+
       return (IPRules, SubnetIds);
     }
 

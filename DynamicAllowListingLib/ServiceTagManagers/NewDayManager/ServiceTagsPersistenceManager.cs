@@ -5,6 +5,7 @@ using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -28,6 +29,17 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
 
     public async Task UpdateDatabaseStateTo(List<ServiceTag> itemsToUpdateWith)
     {
+      var stopwatch = Stopwatch.StartNew();
+      int deletedCount = 0;
+      int upsertedCount = 0;
+
+      // Gap 5b.1 fix: Log null/empty input check
+      if (itemsToUpdateWith == null || !itemsToUpdateWith.Any())
+      {
+        _logger.LogServiceTagsInputListNullOrEmpty();
+        return;
+      }
+
       try
       {
         // Retrieve existing items from the database
@@ -41,25 +53,68 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
 
         // Identify items to add or update
         var itemsToAddOrUpdate = itemsToUpdateWith;
-        // Perform deletions
+
+        // Gap 5b.2 fix: Log items to add/update count
+        _logger.LogServiceTagsToAddOrUpdate(itemsToAddOrUpdate.Count);
+
+        // Log deletion phase start
+        _logger.LogStartingServiceTagsDeletionPhase(itemsToDelete.Count);
+
+        // Perform deletions - Gap 5b.3 fix: Add try-catch for each delete
         foreach (var item in itemsToDelete)
         {
-          await _container.DeleteItemAsync<ServiceTag>(item.Id, new PartitionKey(ServiceTagsPartitionKey));
-
-          _logger.LogItemDeleted(item.Id ?? "Unknown");
+          try
+          {
+            await _container.DeleteItemAsync<ServiceTag>(item.Id, new PartitionKey(ServiceTagsPartitionKey));
+            _logger.LogItemDeleted(item.Id ?? "Unknown");
+            deletedCount++;
+          }
+          catch (CosmosException cex) when (cex.StatusCode == System.Net.HttpStatusCode.NotFound)
+          {
+            // Handle scenario where the item to delete doesn't exist in the database
+            _logger.LogServiceTagNotFoundDuringDeletion(item.Id ?? "Unknown");
+          }
+          catch (Exception ex)
+          {
+            // Log delete exception but continue processing
+            _logger.LogServiceTagDeleteFailed(ex, item.Id ?? "Unknown");
+          }
         }
-        // Perform inserts/updates
+
+        // Log upsert phase start
+        _logger.LogStartingServiceTagsUpsertPhase(itemsToAddOrUpdate.Count);
+
+        // Perform inserts/updates - Gap 5b.4 fix: Add try-catch for each upsert
         foreach (var item in itemsToAddOrUpdate)
         {
-          await _container.UpsertItemAsync(item, new PartitionKey(ServiceTagsPartitionKey));
-          _logger.LogItemUpserted(item.Id ?? "Unknown");
+          try
+          {
+            await _container.UpsertItemAsync(item, new PartitionKey(ServiceTagsPartitionKey));
+            _logger.LogItemUpserted(item.Id ?? "Unknown");
+            upsertedCount++;
+          }
+          catch (Exception ex)
+          {
+            // Log upsert exception but continue processing
+            _logger.LogServiceTagUpsertFailed(ex, item.Id ?? "Unknown");
+          }
         }
+
         _logger.LogDatabaseStateUpdated();
       }
       catch (Exception ex)
       {
         _logger.LogOperationException(ex);
         throw;
+      }
+      finally
+      {
+        stopwatch.Stop();
+        // Log completion summary with counts and duration
+        _logger.LogServiceTagsUpdateCompleted(
+            deletedCount,
+            upsertedCount,
+            stopwatch.ElapsedMilliseconds);
       }
     }
 
@@ -122,46 +177,45 @@ namespace DynamicAllowListingLib.ServiceTagManagers.NewDayManager
           catch (CosmosException cosmosEx)
           {
             // Handle specific CosmosDB exceptions for deletion
-            _logger.LogServiceTagDeletionFailed(item.Id ?? "Unknown", cosmosEx.StatusCode.ToString(), cosmosEx.Message);
-            // Optionally, rethrow or continue depending on requirements
-            throw;
+            _logger.LogServiceTagDeletionFailed(item.Id ?? "Unknown", cosmosEx.StatusCode.ToString(), cosmosEx.Message.ToString());
+          }
+          catch (Exception ex)
+          {
+            // Log generic exception during deletion
+            _logger.LogServiceTagDeleteFailed(ex, item.Id ?? "Unknown");
           }
         }
-        _logger.LogSuccessfullyDeletedItems(itemsToBeDeleted.Count);
       }
       catch (Exception ex)
       {
         _logger.LogOperationException(ex);
+        throw;
       }
     }
 
     public async Task<ServiceTag?> GetById(string id)
     {
-      // Return an empty ServiceTag in case of errors or not found (useful as default value)
-      ServiceTag response1 = new ServiceTag();
       if (string.IsNullOrEmpty(id))
       {
         _logger.LogProvidedIdNullOrEmpty();
-        return response1;
+        return null;
       }
+
       try
       {
-        // Attempt to read the item from Cosmos DB container
         var response = await _container.ReadItemAsync<ServiceTag>(id, new PartitionKey(ServiceTagsPartitionKey));
         _logger.LogServiceTagRetrievedById(id);
         return response.Resource;
       }
       catch (CosmosException cex) when (cex.StatusCode == System.Net.HttpStatusCode.NotFound)
       {
-        // Log the specific case where the item is not found
         _logger.LogServiceTagNotFoundById(id, cex.StatusCode.ToString());
-        _logger.LogOperationException(cex);
-        return response1;
+        return null;
       }
       catch (Exception ex)
       {
         _logger.LogOperationException(ex);
-        return response1;
+        throw;
       }
     }
   }

@@ -76,12 +76,6 @@ namespace DynamicAllowListingLib.Models.AzureResources
         string url = $"https://management.azure.com{Id}?api-version=2021-04-15";
         // Make the GET request
         string? response = await restHelper.DoGET(url);
-        if (string.IsNullOrEmpty(response))
-        {
-          string errorMessage = $"Failed to fetch Keyvault properties for resource {Id}. Response was null or empty.";
-          logger.LogError(errorMessage);
-          throw new NoNullAllowedException(errorMessage);
-        }
         // Check if the response is null or empty
         if (string.IsNullOrEmpty(response))
         {
@@ -163,7 +157,7 @@ namespace DynamicAllowListingLib.Models.AzureResources
         resultObject.Data.SubnetIds = string.Join(',', existingConfig.Properties.VirtualNetworkRules.Select(x => x.Id));
         return resultObject;
       }
-           
+
 
       string jsonString = ConvertToJson(existingConfig);
       string url = $"https://management.azure.com{Id}?api-version=2021-04-15";
@@ -184,7 +178,7 @@ namespace DynamicAllowListingLib.Models.AzureResources
       return resultObject;
     }
 
-    
+
     private async Task<bool> IsValid(ResultObject resultObject, CosmosDbArmProperties existingConfig, IRestHelper restHelper, ILogger logger)
     {
       var subnetRulesToCheck = existingConfig.Properties.VirtualNetworkRules.Select(s => s.Id).ToList();
@@ -239,9 +233,8 @@ namespace DynamicAllowListingLib.Models.AzureResources
         string? response = await restHelper.DoGET(url);
         if (string.IsNullOrEmpty(response))
         {
-          string errorMessage = $"Failed to fetch Keyvault properties for resource {Id}. Response was null or empty.";
-          logger.LogError(errorMessage);
-          throw new NoNullAllowedException(errorMessage);
+          logger.LogError("Received empty or null response for subnet id {Id}.", subnetId);
+          throw new InvalidOperationException($"Received empty response for resource {subnetId}.");
         }
         // Deserialize the response into the AzSubnet object
         subnet = JsonConvert.DeserializeObject<AzSubnet>(response);

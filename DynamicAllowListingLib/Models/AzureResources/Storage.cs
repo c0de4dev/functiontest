@@ -102,11 +102,10 @@ namespace DynamicAllowListingLib.Models.AzureResources
       string? response = await restHelper.DoGET(url);
       if (string.IsNullOrEmpty(response))
       {
-        logger.LogError("StorageArmProperties response was null or empty for resource {Id}.", Id);
-        throw new NoNullAllowedException($"StorageArmProperties response was null or empty for resource {Id}.");
+        logger.LogError("No response received for resource {Id}.", Id);
+        throw new NoNullAllowedException($"No response received for resource {Id}.");
       }
       var StorageArmProperties = JsonConvert.DeserializeObject<StorageArmProperties>(response);
-
       if (StorageArmProperties == null)
       {
         logger.LogError("StorageArmProperties could not be resolved for resource {Id}.", Id);
@@ -218,7 +217,7 @@ namespace DynamicAllowListingLib.Models.AzureResources
     {
       string IPstr = string.Join(',', networkRestrictionSettings.IpSecRules!.Where(x => x.IpAddress != null && IpAddressHelper.IsValidStorageFirewallIp(x.IpAddress))
           .SelectMany(x => ExpandIpAddress(x.IpAddress!)).Select(ip => ip.ToString()));
- 
+
       string SubnetIds = string.Join(',', networkRestrictionSettings.IpSecRules!.Where(x => x.VnetSubnetResourceId != null).Select(x => x.VnetSubnetResourceId));
       return (IPstr, SubnetIds);
     }
@@ -261,7 +260,7 @@ namespace DynamicAllowListingLib.Models.AzureResources
         var baseAddress = ipAddressWithCidr.Replace("/31", "");
         ipAddresses.Add(baseAddress);
         ipAddresses.Add(IncrementIpAddress(baseAddress));
-      }      
+      }
       else
       {
         ipAddresses.Add(ipAddressWithCidr.Replace("/32", ""));

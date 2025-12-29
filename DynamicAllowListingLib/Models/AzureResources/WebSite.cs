@@ -29,7 +29,7 @@ namespace DynamicAllowListingLib.Models.AzureResources
       public string? PossibleOutboundIpAddresses { get; set; }
       public string? VirtualNetworkSubnetId { get; set; }
     }
-    
+
     public IEnumerable<IpSecurityRestrictionRule> GenerateIpRestrictionRules(ILogger logger)
     {
       try
@@ -59,7 +59,7 @@ namespace DynamicAllowListingLib.Models.AzureResources
       }
       catch (Exception ex)
       {        // Log unexpected exceptions
-        logger.LogError(ex,"An error occurred while generating IP restriction rules. Context: {AppName}, {Props}",
+        logger.LogError(ex, "An error occurred while generating IP restriction rules. Context: {AppName}, {Props}",
             Name,
             Props
         );
@@ -92,24 +92,21 @@ namespace DynamicAllowListingLib.Models.AzureResources
 
       logger.LogInformation("Starting to append network restriction rules. ResourceID: {ResourceIdUri}, {ResourceName}", resourceIdUri, resourceName);
       try
-      { 
+      {
         // Fetch existing configuration
         logger.LogDebug("Sending GET request to {Url}.", url);
         string? response = await restHelper.DoGET(url);
 
-        // Validate response before parsing
-        if (string.IsNullOrEmpty(response))
-        {
-          string errorMessage = $"Failed to get web config for {resourceIdUri}. Response was null or empty.";
-          logger.LogError(errorMessage);
-          resultObject.Errors.Add(errorMessage);
-          return resultObject;
-        }
-
         // Ensure we keep existing rules.
         NetworkRestrictionSettings? networkRestrictionSettings = null;
+        if (string.IsNullOrEmpty(response))
+        {
+          resultObject.Errors.Add("Failed to fetch existing configuration. Response was null or empty.");
+          logger.LogWarning("GET request to {Url} returned null or empty response.", url);
+          return resultObject;
+        }
         using (var document = JsonDocument.Parse(response))
-        { 
+        {
           // Fetch existing IP Security Restrictions
           var existingIpSecurityRestrictions = IpSecurityRestrictionRuleHelper.GetIpSecurityRestrictions(document);
           logger.LogInformation("Fetched {Count} existing IP security restrictions. ResourceID: {ResourceIdUri}", existingIpSecurityRestrictions.Count, resourceIdUri);
@@ -208,7 +205,7 @@ namespace DynamicAllowListingLib.Models.AzureResources
       var resourceName = resourceIdParts[resourceIdParts.Length - 1];
 
       string url = $"https://management.azure.com{resourceIdUri}/config/web?api-version=2021-02-01";
-      
+
       logger.LogInformation("Starting to overwrite network restriction rules. ResourceID: {ResourceIdUri}, {ResourceName}",
     resourceIdUri, resourceName);
       try
@@ -253,7 +250,7 @@ namespace DynamicAllowListingLib.Models.AzureResources
         logger.LogInformation("Apply config success for {resourceName}", resourceName);
         string successMessage = LogMessageHelper.GetSuccessfullyUpdatedConfigMessage(resourceIdUri);
 
-        logger.LogInformation("Successfully applied network restriction configuration. Context: {ResourceIdUri}, {ResourceName}",resourceIdUri, resourceName);
+        logger.LogInformation("Successfully applied network restriction configuration. Context: {ResourceIdUri}, {ResourceName}", resourceIdUri, resourceName);
         resultObject.Information.Add(successMessage);
       }
       catch (Exception exception)
@@ -446,7 +443,7 @@ namespace DynamicAllowListingLib.Models.AzureResources
       var getResponseAfterApply = await restHelper.DoGET(postUrl);
       if (string.IsNullOrEmpty(getResponseAfterApply))
       {
-        logger.LogError("Failed to get web config after apply for {resourceName}. Response was null.", resourceName);
+        logger.LogError("Failed to retrieve web config after apply for {resourceName}.", resourceName);
         return false;
       }
       return ValidateIfApplied(resourceName, getResponseAfterApply, networkRestrictionSettings!, logger);

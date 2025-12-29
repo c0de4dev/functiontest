@@ -36,7 +36,7 @@ namespace AllowListingAzureFunction
     {
       var operationId = Guid.NewGuid().ToString();
 
-      // *** CORRELATION FIX: Set correlation context for HTTP trigger ***
+      // Set correlation context for HTTP trigger
       CorrelationContext.SetCorrelationId(operationId);
 
       using var loggerScope = _logger.BeginFunctionScope(FunctionName, operationId);
@@ -54,8 +54,12 @@ namespace AllowListingAzureFunction
 
         operation.AddProperty("SubscriptionId", subscriptionId ?? "Unknown");
 
-        // Read the JSON file
+        // ============================================================
+        // STEP 1: Resolve and read the settings file
+        // ============================================================
         string path = InternalAndThirdPartyServiceTagSettingFileHelper.GetFilePath();
+        _logger.LogSettingsFilePathResolved(FunctionName, path);
+
         if (!File.Exists(path))
         {
           _logger.LogHttpFunctionErrorResponse(FunctionName, operationId, 500, $"Settings file not found: {path}");
@@ -64,6 +68,11 @@ namespace AllowListingAzureFunction
         }
 
         string jsonContent = File.ReadAllText(path);
+        _logger.LogSettingsFileRead(FunctionName, jsonContent.Length);
+
+        // ============================================================
+        // STEP 2: Deserialize the JSON settings
+        // ============================================================
         var root = JsonConvert.DeserializeObject<Root>(jsonContent);
 
         if (root == null)
@@ -73,8 +82,21 @@ namespace AllowListingAzureFunction
           return new StatusCodeResult(StatusCodes.Status500InternalServerError);
         }
 
-        // Find the subscription
+        _logger.LogSettingsFileLoaded(
+            FunctionName,
+            root.AzureSubscriptions?.Count ?? 0,
+            root.ServiceTags?.Count ?? 0);
+
+        // ============================================================
+        // STEP 3: Find the requested subscription
+        // ============================================================
+        _logger.LogSubscriptionLookup(
+            FunctionName,
+            subscriptionId ?? "null",
+            root.AzureSubscriptions?.Count ?? 0);
+
         var sub = root.AzureSubscriptions?.FirstOrDefault(x => x.Id == subscriptionId?.Trim());
+
         if (sub == null)
         {
           _logger.LogHttpFunctionErrorResponse(FunctionName, operationId, 400, $"Subscription not found: {subscriptionId}");
@@ -83,16 +105,23 @@ namespace AllowListingAzureFunction
         }
 
         string subscriptionName = sub.Name ?? string.Empty;
+        _logger.LogSubscriptionMatched(FunctionName, subscriptionId!, subscriptionName);
+
         operation.AddProperty("SubscriptionName", subscriptionName);
 
-        // Prepare the response object
+        // ============================================================
+        // STEP 4: Build the response - filter service tags for subscription
+        // ============================================================
         var outputList = new DefaultTagJsonObject
         {
           SubscriptionId = sub.Id ?? string.Empty,
           SubscriptionName = subscriptionName
         };
 
-        // Add service tags for this subscription
+        int totalServiceTags = root.ServiceTags?.Count ?? 0;
+        int matchedServiceTags = 0;
+        int totalAddresses = 0;
+
         if (root.ServiceTags != null)
         {
           foreach (var serviceTag in root.ServiceTags)
@@ -103,21 +132,52 @@ namespace AllowListingAzureFunction
 
             if (addressesForSubscription != null && addressesForSubscription.Any())
             {
+              var addressCount = addressesForSubscription.Count;
+
               outputList.ServiceTags.Add(new DefaultTagJsonServiceTagObject
               {
                 Name = serviceTag.Name ?? string.Empty,
                 Addresses = addressesForSubscription.ToList()
               });
+
+              matchedServiceTags++;
+              totalAddresses += addressCount;
+
+              _logger.LogServiceTagIncluded(FunctionName, serviceTag.Name ?? "Unknown", addressCount);
+            }
+            else
+            {
+              _logger.LogServiceTagSkipped(FunctionName, serviceTag.Name ?? "Unknown", subscriptionId!);
             }
           }
         }
 
+        // Log the filtering summary
+        _logger.LogServiceTagsFiltered(
+            FunctionName,
+            subscriptionId!,
+            totalServiceTags,
+            matchedServiceTags,
+            totalAddresses);
+
+        // ============================================================
+        // STEP 5: Serialize and return the response
+        // ============================================================
         var settings = new JsonSerializerSettings
         {
           ContractResolver = new CamelCasePropertyNamesContractResolver()
         };
 
         var jsonResult = JsonConvert.SerializeObject(outputList, settings);
+
+        // Log the comprehensive response summary
+        _logger.LogDefaultTagsResponsePrepared(
+            FunctionName,
+            subscriptionId!,
+            subscriptionName,
+            outputList.ServiceTags.Count,
+            totalAddresses,
+            (long)operation.Elapsed.TotalMilliseconds);
 
         _logger.LogHttpFunctionCompleted(FunctionName, operationId, 200, (long)operation.Elapsed.TotalMilliseconds);
         operation.SetSuccess();
@@ -139,7 +199,7 @@ namespace AllowListingAzureFunction
       }
       finally
       {
-        // *** CORRELATION FIX: Clear at end of function ***
+        // Clear correlation context at end of function
         CorrelationContext.Clear();
       }
     }

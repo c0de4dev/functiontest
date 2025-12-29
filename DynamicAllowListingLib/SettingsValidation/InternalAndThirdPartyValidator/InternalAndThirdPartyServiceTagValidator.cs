@@ -3,6 +3,7 @@ using DynamicAllowListingLib.ServiceTagManagers.Model;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
@@ -19,9 +20,15 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
     {
       _logger = logger;
     }
+
     public ResultObject Validate(InternalAndThirdPartyServiceTagSetting settings)
     {
       var result = new ResultObject();
+      var stopwatch = Stopwatch.StartNew();
+
+      // Log validation start
+      _logger.LogValidationStarted(nameof(InternalAndThirdPartyServiceTagSetting));
+
       try
       {
         //run rules
@@ -41,6 +48,19 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
       {
         _logger.LogValidationException(ex);
       }
+      finally
+      {
+        stopwatch.Stop();
+
+        // Log validation summary
+        _logger.LogValidationCompleted(
+            nameof(InternalAndThirdPartyServiceTagSetting),
+            result.Success,
+            result.Errors.Count,
+            result.Warnings.Count,
+            stopwatch.ElapsedMilliseconds);
+      }
+
       return result;
     }
 
@@ -251,43 +271,38 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
         if (settings?.AzureSubscriptions == null || !settings.AzureSubscriptions.Any())
         {
           var errorMessage = "No AzureSubscriptions defined in the settings.";
-          errors.Add(errorMessage);
           _logger.LogNoAzureSubscriptionsDefined();
+          errors.Add(errorMessage);
           return errors;
         }
 
-        // Validate Azure Subscription settings
-        if (settings.AzureSubscriptions == null ||
-            settings.AzureSubscriptions.Count < defaultSubscriptionCount ||
-            settings.AzureSubscriptions.Any(x => String.IsNullOrEmpty(x.Id) || String.IsNullOrEmpty(x.Name)))
+        // Validate minimum subscription count and required fields
+        var validSubscriptionCount = settings.AzureSubscriptions.Count(x => !string.IsNullOrEmpty(x.Id) && !string.IsNullOrEmpty(x.Name));
+        if (validSubscriptionCount < defaultSubscriptionCount)
         {
-          var errorMessage = $"AzureSubscription validation failed. A minimum of {defaultSubscriptionCount} subscriptions with valid 'Id' and 'Name' is required.";
-          errors.Add(errorMessage);
           _logger.LogAzureSubscriptionValidationFailed(defaultSubscriptionCount);
+          errors.Add($"AzureSubscription validation failed. A minimum of {defaultSubscriptionCount} subscriptions with valid 'Id' and 'Name' is required.");
         }
-        else
-        {
-          foreach (var subscription in settings.AzureSubscriptions)
-          {
-            if (string.IsNullOrWhiteSpace(subscription.Id) || string.IsNullOrWhiteSpace(subscription.Name))
-            {
-              var errorMessage = $"AzureSubscription has missing 'Id' or 'Name'. SubscriptionName: {subscription.Name ?? "N/A"}";
-              errors.Add(errorMessage);
-              _logger.LogMissingIdOrName(subscription.Name ?? "N/A");
-              continue;
-            }
 
-            if (!Guid.TryParse(subscription.Id, out Guid result))
-            {
-              string errorMessage = $"Invalid 'AzureSubscription.Id' value. AzureSubscription.Id must be a valid GUID. AzureSubscription.Name: {subscription.Name}";
-              errors.Add(errorMessage);
-              _logger.LogInvalidSubscriptionId(subscription.Name);
-            }
-            else
-            {
-              // Log valid GUID for tracing
-              _logger.LogValidSubscriptionId(subscription.Id, subscription.Name);
-            }
+        foreach (var subscription in settings.AzureSubscriptions)
+        {
+          // Validate that both Id and Name are provided
+          if (string.IsNullOrEmpty(subscription.Id) || string.IsNullOrEmpty(subscription.Name))
+          {
+            _logger.LogMissingIdOrName(subscription.Name ?? "Unknown");
+            errors.Add($"AzureSubscription has missing 'Id' or 'Name'. SubscriptionName: {subscription.Name}");
+            continue;
+          }
+
+          // Validate that the Id is a valid GUID
+          if (!Guid.TryParse(subscription.Id, out _))
+          {
+            _logger.LogInvalidSubscriptionId(subscription.Name);
+            errors.Add($"Invalid 'AzureSubscription.Id' value. AzureSubscription.Id must be a valid GUID. AzureSubscription.Name: {subscription.Name}");
+          }
+          else
+          {
+            _logger.LogValidSubscriptionId(subscription.Id, subscription.Name);
           }
         }
       }
@@ -295,7 +310,7 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
       {
         _logger.LogValidationException(ex);
       }
-      // Return any accumulated errors
+      // Log the outcome of the validation
       if (errors.Any())
       {
         _logger.LogAzureSubscriptionValidationWithErrors(errors.Count);
@@ -307,15 +322,14 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
       return errors;
     }
 
-    public static bool AreIPRangesOverlap(string ipRange1, string ipRange2)
+    public bool AreIPRangesOverlap(string ipRange1, string ipRange2)
     {
+      if (string.IsNullOrEmpty(ipRange1) || string.IsNullOrEmpty(ipRange2))
+      {
+        throw new ArgumentNullException("IP ranges cannot be null or empty.");
+      }
       try
       {
-        // Validate inputs
-        if (string.IsNullOrWhiteSpace(ipRange1) || string.IsNullOrWhiteSpace(ipRange2))
-        {
-          throw new ArgumentException("IP ranges cannot be null, empty, or whitespace.");
-        }
         // Parse the first IP range
         if (!IPNetwork2.TryParse(ipRange1, out var ipNetwork1))
         {
@@ -340,14 +354,17 @@ namespace DynamicAllowListingLib.SettingsValidation.InternalAndThirdPartyValidat
       Match m = Regex.Match(addr, _cidrPattern, RegexOptions.IgnoreCase);
       return m.Success;
     }
+
     public bool IsValidSubnetId(string subnetId)
     {
       return Regex.IsMatch(subnetId, Constants.VNetSubnetIdRegex);
     }
+
     public ResultObject ValidateFormat(InternalAndThirdPartyServiceTagSetting settings)
     {
       throw new NotImplementedException();
     }
+
     private class IpAddressScope
     {
       public string? IpAddress { get; set; }

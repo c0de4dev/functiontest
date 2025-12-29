@@ -462,5 +462,261 @@ namespace DynamicAllowListingLib.Logging
         string? subscriptionId);
 
     #endregion
+
+    // ============================================================
+    // JSON Parsing Operations (EventIds 11520-11539)
+    // ============================================================
+
+    [LoggerMessage(
+        EventId = 11520,
+        Level = LogLevel.Debug,
+        Message = "JSON parsing started | TargetType: {TargetType} | InputLength: {InputLength} bytes")]
+    public static partial void LogJsonParsingStarted(
+        this ILogger logger,
+        string targetType,
+        int inputLength);
+
+    [LoggerMessage(
+        EventId = 11521,
+        Level = LogLevel.Information,
+        Message = "JSON parsing completed successfully | TargetType: {TargetType} | InputLength: {InputLength} bytes")]
+    public static partial void LogJsonParsingCompleted(
+        this ILogger logger,
+        string targetType,
+        int inputLength);
+
+    [LoggerMessage(
+        EventId = 11522,
+        Level = LogLevel.Warning,
+        Message = "JSON parsing error encountered | TargetType: {TargetType} | ErrorMessage: {ErrorMessage}")]
+    public static partial void LogJsonParsingError(
+        this ILogger logger,
+        string targetType,
+        string errorMessage);
+
+    [LoggerMessage(
+        EventId = 11523,
+        Level = LogLevel.Error,
+        Message = "JSON parsing failed | TargetType: {TargetType} | ErrorCount: {ErrorCount} | Errors: {Errors}")]
+    public static partial void LogJsonParsingFailed(
+        this ILogger logger,
+        string targetType,
+        int errorCount,
+        string errors);
+
+    [LoggerMessage(
+        EventId = 11524,
+        Level = LogLevel.Warning,
+        Message = "JSON deserialization resulted in null | TargetType: {TargetType}")]
+    public static partial void LogJsonDeserializationNull(
+        this ILogger logger,
+        string targetType);
+
+    [LoggerMessage(
+        EventId = 11525,
+        Level = LogLevel.Debug,
+        Message = "JSON parsing input is null or empty | TargetType: {TargetType}")]
+    public static partial void LogJsonInputNullOrEmpty(
+        this ILogger logger,
+        string targetType);
+
+    [LoggerMessage(
+        EventId = 11526,
+        Level = LogLevel.Error,
+        Message = "JSON parsing exception | TargetType: {TargetType}")]
+    public static partial void LogJsonParsingException(
+        this ILogger logger,
+        Exception exception,
+        string targetType);
+
+    // ============================================================
+    // AzureSubscriptionsPersistenceManager - Additional Logs (EventIds 10115-10119)
+    // ============================================================
+
+    [LoggerMessage(
+        EventId = 10115,
+        Level = LogLevel.Information,
+        Message = "Items to add or update | Count: {Count}")]
+    public static partial void LogItemsToAddOrUpdate(
+        this ILogger logger,
+        int count);
+
+    [LoggerMessage(
+        EventId = 10116,
+        Level = LogLevel.Warning,
+        Message = "Input list is null or empty for UpdateDatabaseStateTo | ContainerName: {ContainerName}")]
+    public static partial void LogInputListNullOrEmpty(
+        this ILogger logger,
+        string containerName);
+
+    [LoggerMessage(
+        EventId = 10117,
+        Level = LogLevel.Information,
+        Message = "UpdateDatabaseStateTo completed | ContainerName: {ContainerName} | ItemsDeleted: {ItemsDeleted} | ItemsUpserted: {ItemsUpserted} | DurationMs: {DurationMs}")]
+    public static partial void LogUpdateDatabaseStateCompleted(
+        this ILogger logger,
+        string containerName,
+        int itemsDeleted,
+        int itemsUpserted,
+        long durationMs);
+
+    [LoggerMessage(
+        EventId = 10118,
+        Level = LogLevel.Error,
+        Message = "Failed to delete item | ItemId: {ItemId} | ContainerName: {ContainerName}")]
+    public static partial void LogDeleteItemFailed(
+        this ILogger logger,
+        Exception exception,
+        string itemId,
+        string containerName);
+
+    [LoggerMessage(
+        EventId = 10119,
+        Level = LogLevel.Debug,
+        Message = "Starting deletion phase | ItemCount: {ItemCount}")]
+    public static partial void LogStartingDeletionPhase(
+        this ILogger logger,
+        int itemCount);
+
+    // ============================================================
+    // ServiceTagsPersistenceManager - Additional Logs (EventIds 10170-10179)
+    // ============================================================
+
+    [LoggerMessage(
+        EventId = 10170,
+        Level = LogLevel.Warning,
+        Message = "Input list is null or empty for ServiceTags UpdateDatabaseStateTo")]
+    public static partial void LogServiceTagsInputListNullOrEmpty(
+        this ILogger logger);
+
+    [LoggerMessage(
+        EventId = 10171,
+        Level = LogLevel.Information,
+        Message = "ServiceTags to add or update | Count: {Count}")]
+    public static partial void LogServiceTagsToAddOrUpdate(
+        this ILogger logger,
+        int count);
+
+    [LoggerMessage(
+        EventId = 10172,
+        Level = LogLevel.Error,
+        Message = "Failed to delete ServiceTag | ServiceTagId: {ServiceTagId}")]
+    public static partial void LogServiceTagDeleteFailed(
+        this ILogger logger,
+        Exception exception,
+        string serviceTagId);
+
+    [LoggerMessage(
+        EventId = 10173,
+        Level = LogLevel.Warning,
+        Message = "ServiceTag not found during deletion | ServiceTagId: {ServiceTagId}")]
+    public static partial void LogServiceTagNotFoundDuringDeletion(
+        this ILogger logger,
+        string serviceTagId);
+
+    [LoggerMessage(
+        EventId = 10174,
+        Level = LogLevel.Error,
+        Message = "Failed to upsert ServiceTag | ServiceTagId: {ServiceTagId}")]
+    public static partial void LogServiceTagUpsertFailed(
+        this ILogger logger,
+        Exception exception,
+        string serviceTagId);
+
+    [LoggerMessage(
+        EventId = 10175,
+        Level = LogLevel.Information,
+        Message = "ServiceTags UpdateDatabaseStateTo completed | ItemsDeleted: {ItemsDeleted} | ItemsUpserted: {ItemsUpserted} | DurationMs: {DurationMs}")]
+    public static partial void LogServiceTagsUpdateCompleted(
+        this ILogger logger,
+        int itemsDeleted,
+        int itemsUpserted,
+        long durationMs);
+
+    [LoggerMessage(
+        EventId = 10176,
+        Level = LogLevel.Debug,
+        Message = "Starting ServiceTags deletion phase | ItemCount: {ItemCount}")]
+    public static partial void LogStartingServiceTagsDeletionPhase(
+        this ILogger logger,
+        int itemCount);
+
+    [LoggerMessage(
+        EventId = 10177,
+        Level = LogLevel.Debug,
+        Message = "Starting ServiceTags upsert phase | ItemCount: {ItemCount}")]
+    public static partial void LogStartingServiceTagsUpsertPhase(
+        this ILogger logger,
+        int itemCount);
+
+    // ============================================================
+    // InternalAndThirdPartyServiceTagPersistenceManager - Additional Logs (EventIds 10210-10219)
+    // ============================================================
+
+    [LoggerMessage(
+        EventId = 10210,
+        Level = LogLevel.Information,
+        Message = "Skipping Azure Subscriptions update - list is null or empty")]
+    public static partial void LogSkippingAzureSubscriptionsUpdate(
+        this ILogger logger);
+
+    [LoggerMessage(
+        EventId = 10211,
+        Level = LogLevel.Information,
+        Message = "Skipping Service Tags update - list is null or empty")]
+    public static partial void LogSkippingServiceTagsUpdate(
+        this ILogger logger);
+
+    [LoggerMessage(
+        EventId = 10212,
+        Level = LogLevel.Information,
+        Message = "UpdateDatabaseStateTo completed | AzureSubscriptionsUpdated: {AzureSubscriptionsUpdated} | ServiceTagsUpdated: {ServiceTagsUpdated} | DurationMs: {DurationMs}")]
+    public static partial void LogPersistenceManagerUpdateCompleted(
+        this ILogger logger,
+        bool azureSubscriptionsUpdated,
+        bool serviceTagsUpdated,
+        long durationMs);
+
+    [LoggerMessage(
+        EventId = 10213,
+        Level = LogLevel.Debug,
+        Message = "Azure Subscriptions update completed successfully | Count: {Count}")]
+    public static partial void LogAzureSubscriptionsUpdateCompleted(
+        this ILogger logger,
+        int count);
+
+    [LoggerMessage(
+        EventId = 10214,
+        Level = LogLevel.Debug,
+        Message = "Service Tags update completed successfully | Count: {Count}")]
+    public static partial void LogServiceTagsUpdateCompleted(
+        this ILogger logger,
+        int count);
+
+
+    // ============================================================
+    // Validation Summary (EventIds 11540-11549)
+    // ============================================================
+
+    [LoggerMessage(
+        EventId = 11540,
+        Level = LogLevel.Information,
+        Message = "Validation completed | ModelType: {ModelType} | Success: {Success} | ErrorCount: {ErrorCount} | WarningCount: {WarningCount} | DurationMs: {DurationMs}")]
+    public static partial void LogValidationCompleted(
+        this ILogger logger,
+        string modelType,
+        bool success,
+        int errorCount,
+        int warningCount,
+        long durationMs);
+
+    [LoggerMessage(
+        EventId = 11541,
+        Level = LogLevel.Debug,
+        Message = "Validation started | ModelType: {ModelType}")]
+    public static partial void LogValidationStarted(
+        this ILogger logger,
+        string modelType);
+
   }
 }

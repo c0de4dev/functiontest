@@ -178,54 +178,96 @@ namespace DynamicAllowListingLib.Services
       }
     }
 
-    public async Task<ResultObject> OverwriteNetworkRestrictionRulesForMainResource(ResourceDependencyInformation resourceDependencyInformation)
+    /// <summary>
+    /// Overwrites network restriction rules for the main Azure resource.
+    /// This method:
+    /// 1. Creates an AzureResourceService instance for the resource
+    /// 2. Retrieves the Azure resource from ARM API
+    /// 3. Generates all network restriction settings (IP rules, subnet rules, service tags)
+    /// 4. Validates subnet IDs exist in Azure
+    /// 5. Applies restrictions to website deployment slots (if applicable)
+    /// 6. Applies restrictions to the main resource
+    /// </summary>
+    public async Task<ResultObject> OverwriteNetworkRestrictionRulesForMainResource(
+        ResourceDependencyInformation resourceDependencyInformation)
     {
       var resultObject = new ResultObject();
       var resourceId = resourceDependencyInformation.ResourceId ?? "Unknown";
+      var resourceName = resourceDependencyInformation.ResourceName ?? "Unknown";
+      var resourceType = resourceDependencyInformation.ResourceType ?? "Unknown";
 
       using (_logger.BeginResourceScope(resourceDependencyInformation))
       {
         _logger.LogServiceOperationStart(
             nameof(OverwriteNetworkRestrictionRulesForMainResource),
             resourceId,
-            resourceDependencyInformation.ResourceName ?? "Unknown");
+            resourceName);
+
+        // Log resource dependency information for audit
+        var hasInbound = resourceDependencyInformation.AllowInbound?.SecurityRestrictions?.ResourceIds?.Any() ?? false;
+        var hasOutbound = resourceDependencyInformation.AllowOutbound?.ResourceIds?.Any() ?? false;
+        var hasServiceTags = resourceDependencyInformation.AllowInbound?.SecurityRestrictions?.AzureServiceTags?.Any() ?? false;
+        _logger.LogResourceDependencyInfo(resourceId, hasInbound, hasOutbound, hasServiceTags);
 
         try
         {
+          // Step 1: Create AzureResourceService instance
+          _logger.LogAzureResourceServiceCreating(resourceId, resourceName);
           using var azureResourceService = _azureResourceServiceFactory.CreateInstance(resourceDependencyInformation);
-          var mainAzureResource = await azureResourceService.GetAzureResource(resourceDependencyInformation.ResourceId!);
+          _logger.LogAzureResourceServiceCreated(resourceId);
 
+          // Step 2: Get the main Azure resource
+          var mainAzureResource = await azureResourceService.GetAzureResource(resourceDependencyInformation.ResourceId!);
+          _logger.LogAzureResourceRetrieved(
+              resourceId,
+              mainAzureResource?.Type ?? resourceType,
+              mainAzureResource != null);
+
+          // Step 3: Handle PrintOut mode parsing
           bool justPrintOutRules = false;
-          if (bool.TryParse(resourceDependencyInformation.PrintOut, out justPrintOutRules) && mainAzureResource != null)
+          if (!string.IsNullOrEmpty(resourceDependencyInformation.PrintOut))
           {
-            mainAzureResource.PrintOut = justPrintOutRules;
-            _logger.LogInformation("PrintOut mode set to {PrintOut} for ResourceId: {ResourceId}",
-                justPrintOutRules, resourceId);
+            bool.TryParse(resourceDependencyInformation.PrintOut, out justPrintOutRules);
+            _logger.LogPrintOutModeParsed(resourceId, resourceDependencyInformation.PrintOut, justPrintOutRules);
+
+            if (justPrintOutRules && mainAzureResource != null)
+            {
+              mainAzureResource.PrintOut = justPrintOutRules;
+              _logger.LogPrintOutModeEnabled(resourceId);
+            }
           }
 
-          // Resource not found and not in PrintOut mode
+          // Step 4: Handle resource not found scenario
           if (mainAzureResource == null && !justPrintOutRules)
           {
+            _logger.LogMainResourceNotFound(resourceId, justPrintOutRules);
             _logger.LogResourceNotFound(resourceId, "OverwriteNetworkRestrictions");
             resultObject.Errors.Add($"Resource not found. ResourceId:{resourceId}.");
             resultObject.Merge(azureResourceService.ResultObject);
             return resultObject;
           }
 
-          // Retrieve network restrictions to overwrite
+          // Step 5: Retrieve network restrictions to overwrite
           var networkRestrictionsToOverwrite = await azureResourceService.GetUpdateNetworkRestrictionSettingsForMainResource();
 
           var ipRuleCount = networkRestrictionsToOverwrite.IpSecRules?.Count ?? 0;
+          var scmRuleCount = networkRestrictionsToOverwrite.ScmIpSecRules?.Count ?? 0;
           var subnetRuleCount = networkRestrictionsToOverwrite.IpSecRules?
               .Count(r => !string.IsNullOrEmpty(r.VnetSubnetResourceId)) ?? 0;
 
+          _logger.LogNetworkRestrictionRulesRetrieved(resourceId, ipRuleCount, scmRuleCount, subnetRuleCount);
           _logger.LogNetworkRestrictionOverwriteStart(resourceId, ipRuleCount, subnetRuleCount);
 
-          // Remove missing subnet IDs
-          var validatedRules = await RemoveMissingSubnets(networkRestrictionsToOverwrite, _allowedCrossSubscriptionSubnetList);
-          resultObject.Merge(validatedRules);
+          // Step 6: Validate and remove missing subnet IDs
+          _logger.LogSubnetValidationStart(resourceId, subnetRuleCount);
+          var validatedRules = await RemoveMissingSubnetsWithLogging(
+              networkRestrictionsToOverwrite,
+              _allowedCrossSubscriptionSubnetList,
+              resourceId);
+          resultObject.Merge(validatedRules.Item1);
+          _logger.LogSubnetValidationComplete(resourceId, validatedRules.Item2, validatedRules.Item3);
 
-          // Handle PrintOut mode when resource doesn't exist
+          // Step 7: Handle PrintOut mode when resource doesn't exist
           if (mainAzureResource == null && justPrintOutRules)
           {
             var emptyModel = _classProvider.GetResourceClass(resourceDependencyInformation.ResourceType!);
@@ -233,9 +275,8 @@ namespace DynamicAllowListingLib.Services
             if (emptyModel.GetType() == typeof(WebSite) || emptyModel.GetType() == typeof(PublicIpAddress))
             {
               const string errorMessage = "Website and Public IP Address types cannot be used to print out the rules!";
+              _logger.LogPrintOutModeNotSupported(resourceId, resourceDependencyInformation.ResourceType!);
               resultObject.Errors.Add(errorMessage);
-              _logger.LogError("PrintOut not supported for resource type | ResourceType: {ResourceType}",
-                  resourceDependencyInformation.ResourceType);
               return resultObject;
             }
 
@@ -248,6 +289,7 @@ namespace DynamicAllowListingLib.Services
 
             var ipCount = rules.Item1?.Split(',').Length ?? 0;
             var subnetCount = rules.Item2?.Split(',').Length ?? 0;
+            _logger.LogPrintOutOutputGenerated(resourceId, ipCount, subnetCount);
             _logger.LogPrintOutMode(resourceId, ipCount, subnetCount);
 
             _logger.LogServiceOperationComplete(nameof(OverwriteNetworkRestrictionRulesForMainResource),
@@ -255,22 +297,64 @@ namespace DynamicAllowListingLib.Services
             return resultObject;
           }
 
-          // Process website slot if applicable
-          var websiteSlot = await GetWebSiteSlot(mainAzureResource!, _resourceGraphExplorerService);
+          // Step 8: Process website slot if applicable
+          _logger.LogCheckingForWebsiteSlot(resourceId);
+          var websiteSlot = await GetWebSiteSlotWithLogging(mainAzureResource!, resourceId);
+
           if (websiteSlot != null)
           {
+            _logger.LogWebsiteSlotFound(resourceId, websiteSlot.Id!);
+            _logger.LogProcessingWebsiteSlot(websiteSlot.Id!, resourceId);
             _logger.LogWebsiteSlotProcessing(websiteSlot.Id!, resourceId);
 
             var slotRestrictions = GetWebsiteSlotRestrictions(websiteSlot.Id!, networkRestrictionsToOverwrite);
-            var slotRestrictionResult = await websiteSlot.OverWriteNetworkRestrictionRules(slotRestrictions, _logger, _restHelper);
-            resultObject.Merge(slotRestrictionResult);
-            _logger.LogWebsiteSlotRestrictionsApplied(websiteSlot.Id!);
+
+            try
+            {
+              var slotRestrictionResult = await websiteSlot.OverWriteNetworkRestrictionRules(
+                  slotRestrictions, _logger, _restHelper);
+              resultObject.Merge(slotRestrictionResult);
+
+              _logger.LogWebsiteSlotRestrictionsApplied(websiteSlot.Id!, !slotRestrictionResult.Errors.Any());
+            }
+            catch (Exception slotEx)
+            {
+              _logger.LogWebsiteSlotRestrictionsFailed(slotEx, websiteSlot.Id!);
+              resultObject.Warnings.Add($"Failed to apply slot restrictions: {slotEx.Message}");
+            }
+          }
+          else
+          {
+            if (mainAzureResource is WebSite)
+            {
+              _logger.LogNoWebsiteSlotFound(resourceId);
+            }
+            else
+            {
+              _logger.LogNotWebSiteSkippingSlotCheck(resourceId, mainAzureResource?.Type ?? resourceType);
+            }
           }
 
-          // Overwrite main resource restrictions
+          // Step 9: Overwrite main resource restrictions
           var overwriteResult = await mainAzureResource!.OverWriteNetworkRestrictionRules(
               networkRestrictionsToOverwrite, _logger, _restHelper);
+
+          _logger.LogMergingResultObjects(
+              resultObject.Errors.Count,
+              overwriteResult.Errors.Count,
+              resultObject.Warnings.Count,
+              overwriteResult.Warnings.Count);
+
           resultObject.Merge(overwriteResult);
+
+          // Step 10: Log completion summary
+          var totalRulesApplied = ipRuleCount + scmRuleCount;
+          _logger.LogOverwriteOperationSummary(
+              resourceId,
+              totalRulesApplied,
+              !resultObject.Errors.Any(),
+              resultObject.Warnings.Count,
+              resultObject.Errors.Count);
 
           _logger.LogNetworkRestrictionOverwriteComplete(resourceId);
           _logger.LogServiceOperationComplete(nameof(OverwriteNetworkRestrictionRulesForMainResource),
@@ -285,6 +369,93 @@ namespace DynamicAllowListingLib.Services
 
         return resultObject;
       }
+    }
+
+    /// <summary>
+    /// Removes missing subnets with comprehensive logging.
+    /// </summary>
+    /// <returns>Tuple of (ResultObject, ValidSubnetCount, RemovedSubnetCount)</returns>
+    private async Task<(ResultObject, int, int)> RemoveMissingSubnetsWithLogging(
+        NetworkRestrictionSettings rules,
+        List<string> allowedCrossSubscriptionSubnetList,
+        string resourceId)
+    {
+      var resultObject = new ResultObject();
+      int validCount = 0;
+      int removedCount = 0;
+
+      try
+      {
+        if (rules.IpSecRules == null || !rules.IpSecRules.Any())
+        {
+          return (resultObject, 0, 0);
+        }
+
+        var subnetRules = rules.IpSecRules
+            .Where(r => !string.IsNullOrEmpty(r.VnetSubnetResourceId))
+            .ToList();
+
+        using (_logger.BeginSubnetValidationScope(resourceId, subnetRules.Count))
+        {
+          foreach (var rule in subnetRules)
+          {
+            var subnetId = rule.VnetSubnetResourceId!;
+
+            // Check if it's an allowed cross-subscription subnet
+            if (allowedCrossSubscriptionSubnetList.Contains(subnetId))
+            {
+              _logger.LogCrossSubscriptionSubnetAllowed(resourceId, subnetId);
+              validCount++;
+              continue;
+            }
+
+            // Extract subscription ID and check if subnet exists
+            var subscriptionId = StringHelper.GetSubscriptionId(subnetId);
+            var existingSubnets = await _resourceGraphExplorerService.GetAllSubnetIds(subscriptionId);
+
+            if (existingSubnets.Contains(subnetId))
+            {
+              _logger.LogSubnetValidated(resourceId, subnetId);
+              validCount++;
+            }
+            else
+            {
+              _logger.LogSubnetDoesNotExist(subnetId, subscriptionId);
+              _logger.LogMissingSubnetRemoved(resourceId, subnetId);
+
+              rules.IpSecRules.Remove(rule);
+              removedCount++;
+
+              resultObject.Warnings.Add($"Subnet {subnetId} does not exist and was removed from restriction list.");
+            }
+          }
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogServiceException(ex, nameof(RemoveMissingSubnetsWithLogging));
+      }
+
+      return (resultObject, validCount, removedCount);
+    }
+
+    /// <summary>
+    /// Gets website slot with logging.
+    /// </summary>
+    private async Task<WebSite?> GetWebSiteSlotWithLogging(
+        IAzureResource mainAzureResource,
+        string resourceId)
+    {
+      if (mainAzureResource is WebSite webSite)
+      {
+        using (_logger.BeginWebsiteSlotScope(resourceId, null))
+        {
+          var slots = await _resourceGraphExplorerService.GetWebAppSlots(webSite.Id!);
+          return slots.FirstOrDefault();
+        }
+      }
+
+      return null;
     }
 
     public async Task<ResultObject> CheckProvisioningSucceeded(ResourceDependencyInformation resourceDependencyInformation)

@@ -81,14 +81,15 @@ namespace DynamicAllowListingLib.Models.AzureResources
       {
         // Make the GET request to fetch KeyVault properties
         string? response = await restHelper.DoGET(url);
+        // Deserialize the response into KeyVaultArmProperties object
         if (string.IsNullOrEmpty(response))
         {
-          string errorMessage = $"Failed to fetch Keyvault properties for resource {Id}. Response was null or empty.";
-          logger.LogError(errorMessage);
-          throw new NoNullAllowedException(errorMessage);
+          logger.LogError("Received empty or null response for KeyVaultArmProperties for resource {Id}.", Id);
+          throw new InvalidOperationException($"Received empty response for resource {Id}.");
         }
-        // Deserialize the response into KeyVaultArmProperties object
+
         keyvaultArmProperties = JsonConvert.DeserializeObject<KeyVaultArmProperties>(response);
+
         // If the response is null, log the error and throw an exception
         if (keyvaultArmProperties == null)
         {
@@ -103,7 +104,7 @@ namespace DynamicAllowListingLib.Models.AzureResources
         // Log the exception details
         string errorMessage = $"Error occurred while fetching Keyvault properties for resource {Id}. Exception:{ex.Message}";
         logger.LogError(ex, errorMessage);
-      }        
+      }
       // Return the KeyVaultArmProperties object
       return keyvaultArmProperties;
     }
@@ -213,7 +214,7 @@ namespace DynamicAllowListingLib.Models.AzureResources
         return resultObject;
       }
       catch (Exception ex)
-      {        
+      {
         // Handle and log any errors that occur during the process
         string errorMessage = $"Error occurred while applying config to resource {Id}: {ex.Message}";
         resultObject.Errors.Add(errorMessage);
@@ -260,8 +261,9 @@ namespace DynamicAllowListingLib.Models.AzureResources
     public class IpAddressOrRange
     {
       public IpAddressOrRange() { }
-    
-      public IpAddressOrRange(string? ipAddressOrRangeProperty = null) {
+
+      public IpAddressOrRange(string? ipAddressOrRangeProperty = null)
+      {
 
         value = ipAddressOrRangeProperty;
       }

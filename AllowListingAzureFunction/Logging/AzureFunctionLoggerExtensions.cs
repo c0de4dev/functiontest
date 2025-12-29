@@ -327,6 +327,95 @@ namespace AllowListingAzureFunction.Logging
         string instanceId);
 
     // ============================================================
+    // UpdateInternalAndThirdPartySettingsEventHandler (EventIds 11420-11449)
+    // ============================================================
+
+    [LoggerMessage(
+        EventId = 11420,
+        Level = LogLevel.Information,
+        Message = "Processing input documents | Function: {FunctionName} | OperationId: {OperationId} | OriginalCount: {OriginalCount} | UniqueCount: {UniqueCount}")]
+    public static partial void LogInputDocumentsProcessed(
+        this ILogger logger,
+        string functionName,
+        string operationId,
+        int originalCount,
+        int uniqueCount);
+
+    [LoggerMessage(
+        EventId = 11421,
+        Level = LogLevel.Debug,
+        Message = "Processing subscription document | SubscriptionId: {SubscriptionId} | SubscriptionName: {SubscriptionName} | IsDeleted: {IsDeleted} | OperationId: {OperationId}")]
+    public static partial void LogProcessingSubscriptionDocument(
+        this ILogger logger,
+        string subscriptionId,
+        string subscriptionName,
+        bool isDeleted,
+        string operationId);
+
+    [LoggerMessage(
+        EventId = 11422,
+        Level = LogLevel.Debug,
+        Message = "Processing service tag document | ServiceTagId: {ServiceTagId} | ServiceTagName: {ServiceTagName} | IsDeleted: {IsDeleted} | OperationId: {OperationId}")]
+    public static partial void LogProcessingServiceTagDocument(
+        this ILogger logger,
+        string serviceTagId,
+        string serviceTagName,
+        bool isDeleted,
+        string operationId);
+
+    [LoggerMessage(
+        EventId = 11423,
+        Level = LogLevel.Information,
+        Message = "Starting GetValidDependencyConfigs | Function: {FunctionName} | OperationId: {OperationId} | InputCount: {InputCount}")]
+    public static partial void LogGetValidDependencyConfigsStarting(
+        this ILogger logger,
+        string functionName,
+        string operationId,
+        int inputCount);
+
+    [LoggerMessage(
+        EventId = 11424,
+        Level = LogLevel.Warning,
+        Message = "No valid dependency configs found after processing | Function: {FunctionName} | OperationId: {OperationId} | InputDocumentCount: {InputDocumentCount}")]
+    public static partial void LogNoValidConfigsAfterProcessing(
+        this ILogger logger,
+        string functionName,
+        string operationId,
+        int inputDocumentCount);
+
+    [LoggerMessage(
+        EventId = 11425,
+        Level = LogLevel.Information,
+        Message = "Queue messages prepared | Function: {FunctionName} | OperationId: {OperationId} | MessageCount: {MessageCount} | ResourceNames: {ResourceNames}")]
+    public static partial void LogQueueMessagesPrepared(
+        this ILogger logger,
+        string functionName,
+        string operationId,
+        int messageCount,
+        string resourceNames);
+
+    [LoggerMessage(
+        EventId = 11426,
+        Level = LogLevel.Information,
+        Message = "Detected deleted documents | Function: {FunctionName} | OperationId: {OperationId} | DeletedCount: {DeletedCount} | ActiveCount: {ActiveCount}")]
+    public static partial void LogDeletedDocumentsDetected(
+        this ILogger logger,
+        string functionName,
+        string operationId,
+        int deletedCount,
+        int activeCount);
+
+    [LoggerMessage(
+        EventId = 11427,
+        Level = LogLevel.Debug,
+        Message = "Adding config to queue | ResourceName: {ResourceName} | ResourceId: {ResourceId} | OperationId: {OperationId}")]
+    public static partial void LogAddingConfigToQueueWithDetails(
+        this ILogger logger,
+        string resourceName,
+        string resourceId,
+        string operationId);
+
+    // ============================================================
     // Queue Trigger Functions (EventIds 11300-11399)
     // ============================================================
 
@@ -376,6 +465,66 @@ namespace AllowListingAzureFunction.Logging
     public static partial void LogAddingConfigToQueue(
         this ILogger logger,
         string resourceName);
+
+    // ============================================================
+    // Input Processing & Summary (EventIds 11050-11069)
+    // ============================================================
+
+    [LoggerMessage(
+        EventId = 11050,
+        Level = LogLevel.Information,
+        Message = "Input summary | OperationId: {OperationId} | AzureSubscriptionsCount: {AzureSubscriptionsCount} | ServiceTagsCount: {ServiceTagsCount}")]
+    public static partial void LogInputSummary(
+        this ILogger logger,
+        string operationId,
+        int azureSubscriptionsCount,
+        int serviceTagsCount);
+
+    [LoggerMessage(
+        EventId = 11051,
+        Level = LogLevel.Information,
+        Message = "Processing input | OperationId: {OperationId} | ModelType: {ModelType} | PayloadSize: {PayloadSize} bytes")]
+    public static partial void LogProcessingInput(
+        this ILogger logger,
+        string operationId,
+        string modelType,
+        int payloadSize);
+
+    [LoggerMessage(
+        EventId = 11052,
+        Level = LogLevel.Debug,
+        Message = "Input details | OperationId: {OperationId} | HasSubscriptions: {HasSubscriptions} | HasServiceTags: {HasServiceTags}")]
+    public static partial void LogInputDetails(
+        this ILogger logger,
+        string operationId,
+        bool hasSubscriptions,
+        bool hasServiceTags);
+
+    // ============================================================
+    // Success Completion Details (EventIds 11070-11089)
+    // ============================================================
+
+    [LoggerMessage(
+        EventId = 11070,
+        Level = LogLevel.Information,
+        Message = "HTTP function completed successfully | Function: {FunctionName} | OperationId: {OperationId} | StatusCode: {StatusCode} | DurationMs: {DurationMs}")]
+    public static partial void LogHttpFunctionCompletedSuccessfully(
+        this ILogger logger,
+        string functionName,
+        string operationId,
+        int statusCode,
+        long durationMs);
+
+    [LoggerMessage(
+        EventId = 11071,
+        Level = LogLevel.Information,
+        Message = "Database update operation summary | OperationId: {OperationId} | SubscriptionsProcessed: {SubscriptionsProcessed} | ServiceTagsProcessed: {ServiceTagsProcessed} | DurationMs: {DurationMs}")]
+    public static partial void LogDatabaseUpdateSummary(
+        this ILogger logger,
+        string operationId,
+        int subscriptionsProcessed,
+        int serviceTagsProcessed,
+        long durationMs);
 
     // ============================================================
     // Cosmos DB Trigger Functions (EventIds 11400-11499)
@@ -749,6 +898,109 @@ namespace AllowListingAzureFunction.Logging
         this ILogger logger,
         string functionName,
         string resourceId);
+
+    // ============================================================
+    // DefaultTags Function - Settings & Subscription Logging (EventIds 11050-11079)
+    // Add this section to AllowListingAzureFunction/Logging/AzureFunctionLoggerExtensions.cs
+    // Place after the existing HTTP Trigger Functions section (after EventId 11021)
+    // ============================================================
+
+    #region DefaultTags Function (EventIds 11050-11079)
+
+    [LoggerMessage(
+        EventId = 11050,
+        Level = LogLevel.Debug,
+        Message = "Settings file path resolved | Function: {FunctionName} | FilePath: {FilePath}")]
+    public static partial void LogSettingsFilePathResolved(
+        this ILogger logger,
+        string functionName,
+        string filePath);
+
+    [LoggerMessage(
+        EventId = 11051,
+        Level = LogLevel.Information,
+        Message = "Settings file loaded successfully | Function: {FunctionName} | SubscriptionCount: {SubscriptionCount} | ServiceTagCount: {ServiceTagCount}")]
+    public static partial void LogSettingsFileLoaded(
+        this ILogger logger,
+        string functionName,
+        int subscriptionCount,
+        int serviceTagCount);
+
+    [LoggerMessage(
+        EventId = 11052,
+        Level = LogLevel.Debug,
+        Message = "Settings file read | Function: {FunctionName} | FileSizeBytes: {FileSizeBytes}")]
+    public static partial void LogSettingsFileRead(
+        this ILogger logger,
+        string functionName,
+        int fileSizeBytes);
+
+    [LoggerMessage(
+        EventId = 11053,
+        Level = LogLevel.Information,
+        Message = "Subscription matched | Function: {FunctionName} | SubscriptionId: {SubscriptionId} | SubscriptionName: {SubscriptionName}")]
+    public static partial void LogSubscriptionMatched(
+        this ILogger logger,
+        string functionName,
+        string subscriptionId,
+        string subscriptionName);
+
+    [LoggerMessage(
+        EventId = 11054,
+        Level = LogLevel.Debug,
+        Message = "Subscription lookup | Function: {FunctionName} | RequestedSubscriptionId: {RequestedSubscriptionId} | AvailableSubscriptions: {AvailableSubscriptions}")]
+    public static partial void LogSubscriptionLookup(
+        this ILogger logger,
+        string functionName,
+        string requestedSubscriptionId,
+        int availableSubscriptions);
+
+    [LoggerMessage(
+        EventId = 11055,
+        Level = LogLevel.Information,
+        Message = "Service tags filtered for subscription | Function: {FunctionName} | SubscriptionId: {SubscriptionId} | TotalServiceTags: {TotalServiceTags} | MatchedServiceTags: {MatchedServiceTags} | TotalAddresses: {TotalAddresses}")]
+    public static partial void LogServiceTagsFiltered(
+        this ILogger logger,
+        string functionName,
+        string subscriptionId,
+        int totalServiceTags,
+        int matchedServiceTags,
+        int totalAddresses);
+
+    [LoggerMessage(
+        EventId = 11056,
+        Level = LogLevel.Debug,
+        Message = "Service tag included | Function: {FunctionName} | TagName: {TagName} | AddressCount: {AddressCount}")]
+    public static partial void LogServiceTagIncluded(
+        this ILogger logger,
+        string functionName,
+        string tagName,
+        int addressCount);
+
+    [LoggerMessage(
+        EventId = 11057,
+        Level = LogLevel.Debug,
+        Message = "Service tag skipped (no addresses for subscription) | Function: {FunctionName} | TagName: {TagName} | SubscriptionId: {SubscriptionId}")]
+    public static partial void LogServiceTagSkipped(
+        this ILogger logger,
+        string functionName,
+        string tagName,
+        string subscriptionId);
+
+    [LoggerMessage(
+        EventId = 11058,
+        Level = LogLevel.Information,
+        Message = "DefaultTags response prepared | Function: {FunctionName} | SubscriptionId: {SubscriptionId} | SubscriptionName: {SubscriptionName} | ServiceTagCount: {ServiceTagCount} | TotalAddressCount: {TotalAddressCount} | DurationMs: {DurationMs}")]
+    public static partial void LogDefaultTagsResponsePrepared(
+        this ILogger logger,
+        string functionName,
+        string subscriptionId,
+        string subscriptionName,
+        int serviceTagCount,
+        int totalAddressCount,
+        long durationMs);
+
+    #endregion
 
     // ============================================================
     // Validation Operations (EventIds 400-449)
